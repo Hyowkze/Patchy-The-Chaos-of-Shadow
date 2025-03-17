@@ -13,17 +13,30 @@ public class PlayerInputHandler : MonoBehaviour
     [SerializeField] private string sprintActionName = "Sprint";
     [SerializeField] private string dashActionName = "Dash";
 
+    [SerializeField] private string attackActionName = "Attack";
+    [SerializeField] private string specialActionName = "SpecialPower";
+
     private InputAction moveAction;
     private InputAction jumpAction;
     private InputAction sprintAction;
     private InputAction dashAction;
+    private InputAction attackAction;
+    private InputAction specialAction;
 
     public Vector2 MoveInput { get; private set; }
     internal bool JumpTriggered { get; set; }
     public float SprintValue { get; private set; }
     internal bool DashTriggered { get; set; }
+    internal bool AttackTriggered { get; set; }
+    internal bool SpecialTriggered { get; set; }
 
     public static PlayerInputHandler Instance { get; private set; }
+
+    public event System.Action<Vector2> OnMoveInputChanged;
+    public event System.Action OnJumpInputChanged;
+    public event System.Action OnDashInputChanged; // Added
+    public event System.Action OnAttackInputChanged; // Added
+    public event System.Action OnSpecialInputChanged; // Added
 
     private void Awake()
     {
@@ -53,6 +66,8 @@ public class PlayerInputHandler : MonoBehaviour
         jumpAction = actionMap.FindAction(jumpActionName, true);
         sprintAction = actionMap.FindAction(sprintActionName, true);
         dashAction = actionMap.FindAction(dashActionName, true);
+        attackAction = actionMap.FindAction(attackActionName, true);
+        specialAction = actionMap.FindAction(specialActionName, true);
 
         RegisterInputActions();
     }
@@ -60,17 +75,42 @@ public class PlayerInputHandler : MonoBehaviour
     private void RegisterInputActions()
     {
         // Subscribe to the "performed" and "canceled" events of each input action
-        moveAction.performed += ctx => MoveInput = ctx.ReadValue<Vector2>();
-        moveAction.canceled += _ => MoveInput = Vector2.zero; //Using _ to replace ctx
+        moveAction.performed += ctx => {
+            MoveInput = ctx.ReadValue<Vector2>();
+            OnMoveInputChanged?.Invoke(MoveInput);
+        };
+        moveAction.canceled += _ => {
+            MoveInput = Vector2.zero;
+            OnMoveInputChanged?.Invoke(MoveInput);
+        };
 
-        jumpAction.performed += OnJumpPerformed;
+        jumpAction.performed += ctx => {
+            JumpTriggered = true;
+            OnJumpInputChanged?.Invoke();
+            Debug.Log("Jump Input Performed");
+        };
         jumpAction.canceled += OnJumpCanceled;
 
         sprintAction.performed += ctx => SprintValue = ctx.ReadValue<float>();
-        sprintAction.canceled += _ => SprintValue = 0f; //Using _ to replace ctx
+        sprintAction.canceled += _ => SprintValue = 0f; // Reset sprint value
 
-        dashAction.performed += _ => DashTriggered = true;
+        dashAction.performed += _ => {
+            DashTriggered = true;
+            OnDashInputChanged?.Invoke(); // Trigger the event
+        };
         dashAction.canceled += _ => DashTriggered = false;
+
+        attackAction.performed += _ => {
+            AttackTriggered = true;
+            OnAttackInputChanged?.Invoke(); // Trigger the event
+        };
+        attackAction.canceled += _ => AttackTriggered = false;
+
+        specialAction.performed += _ => {
+            SpecialTriggered = true;
+            OnSpecialInputChanged?.Invoke(); // Trigger the event
+        };
+        specialAction.canceled += _ => SpecialTriggered = false;
     }
 
     private void OnJumpPerformed(InputAction.CallbackContext ctx)
@@ -101,6 +141,8 @@ public class PlayerInputHandler : MonoBehaviour
         jumpAction.Enable();
         sprintAction.Enable();
         dashAction.Enable();
+        attackAction.Enable();
+        specialAction.Enable();
     }
 
     private void DisableInputActions()
@@ -109,5 +151,7 @@ public class PlayerInputHandler : MonoBehaviour
         jumpAction.Disable();
         sprintAction.Disable();
         dashAction.Disable();
+        attackAction.Disable();
+        specialAction.Disable();
     }
 }

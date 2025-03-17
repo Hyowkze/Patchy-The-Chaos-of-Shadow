@@ -1,76 +1,157 @@
 using UnityEngine;
+using Player.Movement;
 
 [RequireComponent(typeof(Rigidbody2D))]
-public class PatchyMovement : MonoBehaviour
+public class PatchyMovement : MonoBehaviour, IMoveable
 {
-    [Header("Movement Settings")]
-    [SerializeField] private float moveSpeed = 5f;
-    [SerializeField] private float sprintMultiplier = 1.5f;
-    [SerializeField] private float jumpForce = 10f;
-
+    [Header("Configuration")]
+    [SerializeField] private MovementConfig moveConfig;
+    [SerializeField] private PhysicsConfig physicsConfig;
+    
     [Header("Layer Detection")]
     [SerializeField] private LayerMask wallLayer;
     [SerializeField] private LayerMask groundLayer;
-    private bool isAgainstWall;
-    private bool isGrounded;
-    private float lastMoveDirection;
-
-    [Header("Dash Settings")]
-    [SerializeField] private float dashSpeed = 20f;
-    [SerializeField] private float dashDuration = 0.2f;
-    [SerializeField] private float dashCooldown = 1f;
-    private bool isDashing;
-    private bool canDash = true;
-    private float dashTimeLeft;
-    private float dashCooldownTimeLeft;
-    private Vector2 dashDirection;
-
-    [Header("Components")]
+    
+    [Header("Ground Check")]
+    [SerializeField] private Transform groundCheckPoint;
+    
+    private IMovementBehavior basicMovement;
+    private Player.Movement.IDashBehavior dashBehavior;
+    private Player.Movement.ISprintBehavior sprintBehavior;
     private Rigidbody2D rb;
     private PlayerInputHandler inputHandler;
+    private CombatSystem combatSystem;
+    
+    private bool IsAgainstWall; // Re-added
+    private bool IsGrounded;
+    private float LastMoveDirection; // Added
 
+    // Properties from MovementConfig that need to be added
+    private float MoveSpeed => moveConfig.MoveSpeed;
+    private float JumpForce => moveConfig.JumpForce;
+    private float SprintMultiplier => moveConfig.SprintSettings.SprintMultiplier;
+    private float WallCollisionAngleThreshold => physicsConfig.WallCollisionAngleThreshold;
+    private float GroundCollisionAngleThreshold => physicsConfig.GroundCollisionAngleThreshold;
+
+    private bool canMove = true;
     private float horizontalInput;
     private bool facingRight = true;
 
+    public event System.Action<float> OnDashCooldownUpdate;
+    public event System.Action<float> OnSprintValueChanged;
+
+    // Cache component references
     private void Awake()
     {
+        // Validate required components
+        if (moveConfig == null || physicsConfig == null)
+        {
+            Debug.LogError($"Missing required configuration on {gameObject.name}");
+            enabled = false;
+            return;
+        }
+
         rb = GetComponent<Rigidbody2D>();
+        combatSystem = GetComponent<CombatSystem>();
+        
+        InitializeBehaviors();
+    }
+
+    private void InitializeBehaviors()
+    {
+        if (moveConfig == null)
+        {
+            Debug.LogError($"Missing MovementConfig on {gameObject.name}");
+            enabled = false;
+            return;
+        }
+        
+        basicMovement = new GroundMovement(moveConfig);
+        dashBehavior = new Player.Movement.DashBehavior(moveConfig.DashSettings);
+        sprintBehavior = new SprintBehavior(moveConfig.SprintSettings);
     }
 
     private void Start()
     {
         inputHandler = PlayerInputHandler.Instance;
+        if (inputHandler == null)
+        {
+            Debug.LogError("PlayerInputHandler not found in scene");
+            enabled = false;
+            return;
+        }
+
+        if (combatSystem != null)
+        {
+            combatSystem.OnAttackStateChanged += HandleAttackState;
+        }
+        
+        inputHandler.OnDashInputChanged += HandleDashInput;
     }
 
     private void Update()
     {
-        // Handle input reading
+        if (!canMove) return;
+
+        HandleInputs();
+        UpdateDashState();
+        UpdateSprintState();
+    }
+
+    private void HandleInputs()
+    {
         horizontalInput = inputHandler.MoveInput.x;
 
-        // Handle Dash
-        if (inputHandler.DashTriggered && canDash && !isDashing)
+        if (inputHandler.JumpTriggered && IsGrounded)
+            Jump();
+
+        HandleSpriteFlip();
+    }
+
+    private void HandleDashInput()
+    {
+        if (dashBehavior.CanDash)
+            InitiateDash();
+    }
+
+    private void Jump()
+    {
+        rb.linearVelocity = new Vector2(rb.linearVelocity.x, JumpForce);
+        inputHandler.JumpTriggered = false;
+    }
+
+    private void InitiateDash()
+    {
+        Vector2 dashDir = CalculateDashDirection();
+        rb.linearVelocity = dashBehavior.PerformDash(dashDir);
+    }
+
+    private Vector2 CalculateDashDirection()
+    {
+        return inputHandler.MoveInput != Vector2.zero 
+            ? inputHandler.MoveInput.normalized 
+            : new Vector2(facingRight ? 1f : -1f, 0f);
+    }
+
+    private void UpdateDashState()
+    {
+        dashBehavior.UpdateDashState(Time.deltaTime);
+        OnDashCooldownUpdate?.Invoke(dashBehavior.CooldownProgress);
+    }
+
+    private void UpdateSprintState()
+    {
+        float sprintMultiplier = sprintBehavior.CalculateSprintMultiplier(inputHandler.SprintValue);
+        OnSprintValueChanged?.Invoke(sprintMultiplier);
+    }
+
+    private void HandleSpriteFlip()
+    {
+        if (horizontalInput > 0 && !facingRight)
         {
-            StartDash();
+            FlipSprite();
         }
-
-        HandleDashState();
-
-        // Simplificar lógica de salto
-        if (inputHandler.JumpTriggered && isGrounded)
-        {
-            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
-            Debug.Log($"Jumping! Velocity: {rb.linearVelocity.y}");
-            inputHandler.JumpTriggered = false;
-        }
-
-        // Check if player is changing direction while against wall
-        if (isAgainstWall && Mathf.Sign(horizontalInput) != Mathf.Sign(lastMoveDirection))
-        {
-            isAgainstWall = false;
-        }
-
-        // Handle sprite flipping
-        if ((horizontalInput > 0 && !facingRight) || (horizontalInput < 0 && facingRight))
+        else if (horizontalInput < 0 && facingRight)
         {
             FlipSprite();
         }
@@ -78,60 +159,19 @@ public class PatchyMovement : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (isDashing)
+        if (!canMove || dashBehavior.IsDashing) return;
+
+        float sprintMultiplier = sprintBehavior.CalculateSprintMultiplier(inputHandler.SprintValue);
+        Vector2 targetVelocity = basicMovement.CalculateVelocity(rb.linearVelocity, horizontalInput * sprintMultiplier);
+
+        // Prevent movement into the wall
+        if (IsAgainstWall && Mathf.Sign(horizontalInput) == Mathf.Sign(LastMoveDirection))
         {
-            rb.linearVelocity = dashDirection * dashSpeed;
-            return;
+            targetVelocity.x = 0;
         }
+        LastMoveDirection = horizontalInput;
 
-        // Calculate final speed including sprint
-        float currentSpeed = moveSpeed * (1f + (inputHandler.SprintValue * (sprintMultiplier - 1f)));
-        
-        // Only apply horizontal movement if not against wall or changing direction
-        float finalHorizontalSpeed = isAgainstWall ? 0 : horizontalInput * currentSpeed;
-        rb.linearVelocity = new Vector2(finalHorizontalSpeed, rb.linearVelocity.y);
-
-        if (horizontalInput != 0)
-        {
-            lastMoveDirection = horizontalInput;
-        }
-    }
-
-    private void StartDash()
-    {
-        isDashing = true;
-        canDash = false;
-        dashTimeLeft = dashDuration;
-        dashCooldownTimeLeft = dashCooldown;
-        
-        // Set dash direction based on input or facing direction
-        dashDirection = inputHandler.MoveInput != Vector2.zero 
-            ? inputHandler.MoveInput.normalized 
-            : new Vector2(facingRight ? 1f : -1f, 0f);
-
-        Debug.Log("Dash started!");
-    }
-
-    private void HandleDashState()
-    {
-        if (isDashing)
-        {
-            dashTimeLeft -= Time.deltaTime;
-            if (dashTimeLeft <= 0)
-            {
-                isDashing = false;
-                rb.linearVelocity = Vector2.zero; // Reset velocity after dash
-            }
-        }
-
-        if (!canDash)
-        {
-            dashCooldownTimeLeft -= Time.deltaTime;
-            if (dashCooldownTimeLeft <= 0)
-            {
-                canDash = true;
-            }
-        }
+        rb.linearVelocity = targetVelocity;
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
@@ -140,17 +180,14 @@ public class PatchyMovement : MonoBehaviour
         {
             float angle = Vector2.Angle(contact.normal, Vector2.up);
             
-            // Colisión con pared (ángulo cercano a 90 grados)
-            if (((1 << collision.gameObject.layer) & wallLayer) != 0 && angle > 45f)
+            if (((1 << collision.gameObject.layer) & wallLayer) != 0 && angle > WallCollisionAngleThreshold)
             {
-                isAgainstWall = true;
+                IsAgainstWall = true;
             }
             
-            // Colisión con suelo (ángulo cercano a 0 grados)
-            if (((1 << collision.gameObject.layer) & groundLayer) != 0 && angle < 45f)
+            if (((1 << collision.gameObject.layer) & groundLayer) != 0 && angle < GroundCollisionAngleThreshold)
             {
-                isGrounded = true;
-                Debug.Log("Ground detected - Can jump now");
+                IsGrounded = true;
             }
         }
     }
@@ -159,13 +196,12 @@ public class PatchyMovement : MonoBehaviour
     {
         if (((1 << collision.gameObject.layer) & wallLayer) != 0)
         {
-            isAgainstWall = false;
+            IsAgainstWall = false;
         }
         
         if (((1 << collision.gameObject.layer) & groundLayer) != 0)
         {
-            isGrounded = false;
-            Debug.Log("Left ground - Cannot jump");
+            IsGrounded = false;
         }
     }
 
@@ -176,4 +212,31 @@ public class PatchyMovement : MonoBehaviour
         localScale.x *= -1f;
         transform.localScale = localScale;
     }
+
+    private void HandleAttackState(bool isAttacking)
+    {
+        canMove = !isAttacking;
+    }
+
+    private void OnDestroy()
+    {
+        if (combatSystem != null)
+        {
+            combatSystem.OnAttackStateChanged -= HandleAttackState;
+        }
+        inputHandler.OnDashInputChanged -= HandleDashInput;
+    }
+
+    private void OnDisable()
+    {
+        if (combatSystem != null)
+        {
+            combatSystem.OnAttackStateChanged -= HandleAttackState;
+        }
+        inputHandler.OnDashInputChanged -= HandleDashInput;
+    }
+}
+
+internal interface IMoveable
+{
 }

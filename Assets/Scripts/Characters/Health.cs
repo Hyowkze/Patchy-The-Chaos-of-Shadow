@@ -16,12 +16,17 @@ public class Health : MonoBehaviour
     [Header("Events")]
     public UnityEvent OnHealthChanged; // Called when health changes
     public UnityEvent OnDeath; // Called when health reaches 0
+    public event System.Action<float, float> OnHealthValueChanged; // currentHealth, maxHealth
 
     private float timeSinceLastDamage;
     public float MaxHealth => maxHealth;
     public float CurrentHealth => currentHealth;
 
     private Coroutine regenerationCoroutine; //Reference to the current coroutine.
+
+    [Header("Death Behavior")]
+    [SerializeField] private bool isPlayer = false;
+    [SerializeField] private bool destroyOnDeath = true;
 
     private void Awake()
     {
@@ -37,6 +42,7 @@ public class Health : MonoBehaviour
 
         timeSinceLastDamage = Time.time;
         OnHealthChanged?.Invoke();
+        OnHealthValueChanged?.Invoke(currentHealth, maxHealth);
 
         if (currentHealth <= 0f)
         {
@@ -89,7 +95,21 @@ public class Health : MonoBehaviour
     private void Die()
     {
         OnDeath?.Invoke();
-        Destroy(gameObject); //You can change this to a virtual method.
+        
+        if (isPlayer)
+        {
+            GameManager.Instance.HandlePlayerDeath();
+            return;
+        }
+
+        if (destroyOnDeath)
+        {
+            Destroy(gameObject);
+        }
+        else
+        {
+            gameObject.SetActive(false);
+        }
     }
 
     public void RestartRegeneration()
