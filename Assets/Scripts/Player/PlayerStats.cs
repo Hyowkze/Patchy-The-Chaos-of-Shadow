@@ -1,81 +1,117 @@
 using UnityEngine;
 using System.Collections;
+using Core.Player;
+using Core.Managers;
+using Core.Characters;
 
-public class PlayerStats : MonoBehaviour
+namespace Core.Player
 {
-    [Header("Experience Settings")]
-    [SerializeField] private int currentExperience = 0;
-    [SerializeField] private int experiencePenalty = 50;
-    [SerializeField] private float experiencePenaltyPercentage = 0.1f;
-
-    [Header("Respawn Settings")]
-    [SerializeField] private float respawnDelay = 2f;
-
-    [Header("Game Over Settings")]
-    [SerializeField] private float gameOverDelay = 1f; // Now used
-    private bool isGameOver = false;
-
-    private Vector3 lastCheckpoint;
-    private Health healthComponent;
-
-    public event System.Action<int> OnExperienceChanged;
-    public int CurrentExperience => currentExperience;
-
-    private void Awake()
+    [RequireComponent(typeof(Health))]
+    public class PlayerStats : MonoBehaviour
     {
-        healthComponent = GetComponent<Health>();
-        lastCheckpoint = transform.position;
-    }
+        [Header("Experience Settings")]
+        [SerializeField] private int currentExperience = 0;
+        [SerializeField] private int experiencePenalty = 50;
+        [SerializeField] private float experiencePenaltyPercentage = 0.1f;
 
-    public void SetCheckpoint(Vector3 position)
-    {
-        lastCheckpoint = position;
-    }
+        [Header("Respawn Settings")]
+        [SerializeField] private float respawnDelay = 2f;
 
-    public void HandleDeath()
-    {
-        // Calculate experience loss
-        int experienceLoss = Mathf.Min(
-            experiencePenalty,
-            Mathf.RoundToInt(currentExperience * experiencePenaltyPercentage)
-        );
-        
-        int newExperience = currentExperience - experienceLoss;
-        
-        if (newExperience <= 0)
+        [Header("Game Over Settings")]
+        [SerializeField] private float gameOverDelay = 1f; // Now used
+        private bool isGameOver = false;
+
+        private Vector3 lastCheckpoint;
+        private Health healthComponent;
+
+        public event System.Action<int> OnExperienceChanged;
+        public int CurrentExperience => currentExperience;
+
+        private void Awake()
         {
-            GameOver();
-            return;
+            InitializeComponents();
+            InitializeStartingValues();
         }
 
-        currentExperience = newExperience;
-        OnExperienceChanged?.Invoke(currentExperience);
-        
-        // Random respawn
-        Invoke(nameof(RandomRespawn), respawnDelay);
-    }
+        private void InitializeComponents()
+        {
+            healthComponent = GetComponent<Health>();
+            if (healthComponent == null)
+            {
+                Debug.LogError($"Missing Health component on {gameObject.name}");
+                enabled = false;
+            }
+        }
 
-    private void GameOver()
-    {
-        isGameOver = true;
-        currentExperience = 0;
-        OnExperienceChanged?.Invoke(currentExperience);
-        GameManager.Instance.TriggerGameOver(gameOverDelay); // Pass the delay
-    }
+        private void InitializeStartingValues()
+        {
+            lastCheckpoint = transform.position;
+            currentExperience = 0;
+            isGameOver = false;
+        }
 
-    private void RandomRespawn()
-    {
-        if (isGameOver) return;
-        
-        Vector3 randomPosition = GridManager.Instance.GetRandomValidPosition();
-        transform.position = randomPosition;
-        gameObject.SetActive(true);
-        healthComponent.RestartRegeneration();
-    }
+        public void SetCheckpoint(Vector3 position)
+        {
+            lastCheckpoint = position;
+        }
 
-    public void AddExperience(int amount)
-    {
-        currentExperience += amount;
-        OnExperienceChanged?.Invoke(currentExperience);
+        public void HandleDeath()
+        {
+            if (isGameOver) return;
+
+            int experienceLoss = CalculateExperienceLoss();
+            UpdateExperience(experienceLoss);
+            
+            if (currentExperience <= 0)
+            {
+                GameOver();
+                return;
+            }
+
+            StartCoroutine(RespawnRoutine());
+        }
+
+        private int CalculateExperienceLoss()
+        {
+            return Mathf.Min(
+                experiencePenalty,
+                Mathf.RoundToInt(currentExperience * experiencePenaltyPercentage)
+            );
+        }
+
+        private void UpdateExperience(int loss)
+        {
+            currentExperience = Mathf.Max(0, currentExperience - loss);
+            OnExperienceChanged?.Invoke(currentExperience);
+        }
+
+        private void GameOver()
+        {
+            isGameOver = true;
+            currentExperience = 0;
+            OnExperienceChanged?.Invoke(currentExperience);
+            GameManager.Instance.TriggerGameOver(gameOverDelay); // Pass the delay
+        }
+
+        private IEnumerator RespawnRoutine()
+        {
+            yield return new WaitForSeconds(respawnDelay);
+            RandomRespawn();
+        }
+
+        private void RandomRespawn()
+        {
+            if (isGameOver) return;
+            
+            Vector3 closestPosition = GridManager.Instance.GetClosestValidPosition(transform.position);
+            transform.position = closestPosition;
+            gameObject.SetActive(true);
+        }
+
+        public void AddExperience(int amount)
+        {
+            currentExperience += amount;
+            OnExperienceChanged?.Invoke(currentExperience);
+        }
     }
 }

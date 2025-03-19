@@ -1,4 +1,5 @@
 using UnityEngine;
+using Core.Combat;
 
 [CreateAssetMenu(fileName = "AttackConfig", menuName = "Combat/AttackConfig")]
 public class AttackConfig : ScriptableObject

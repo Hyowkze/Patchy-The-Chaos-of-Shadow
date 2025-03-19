@@ -1,130 +1,180 @@
 using UnityEngine;
 using System.Collections.Generic;
+using Core.Enemy;
 
-public class EnemyDetection : MonoBehaviour
+namespace Core.Enemy 
 {
-    [Header("Detection Settings")]
-    [SerializeField] private LayerMask groundLayer;
-    [SerializeField] private LayerMask jumpZoneLayer;
-    [SerializeField] private LayerMask dropZoneLayer;
-    [SerializeField] private float jumpZoneRadius = 3f;
-    [SerializeField] private float dropCheckDistance = 3f;
-    [SerializeField] private float transitionDetectionRadius = 0.5f;
-    [SerializeField] private float groundCheckRadius = 0.4f;
-    [SerializeField] private float wallCheckDistance = 1.2f;
-    [SerializeField] private float minHeightDifference = 2.5f;
-
-    [Header("References")]
-    [SerializeField] private Transform groundCheck;
-    [SerializeField] private Transform wallCheck;
-
-    private Transform player;
-    private Vector3 playerPreviousPosition;
-    
-    // Public properties para acceso externo
-    public bool IsGrounded { get; private set; }
-    public bool PlayerMovingUp { get; private set; }
-    public bool ShouldDrop { get; private set; }
-    public bool InJumpZone { get; private set; }
-    public bool PlayerFound { get; private set; }
-    public Vector3 PlayerPosition => player.position;
-    public List<Vector2> PlatformTransitions { get; } = new List<Vector2>();
-
-    private void Start()
+    public class EnemyDetection : MonoBehaviour
     {
-        player = GameObject.FindGameObjectWithTag("Player").transform;
-        if (player == null) Debug.LogError("Player no encontrado!");
-        playerPreviousPosition = player.position;
-        UpdatePlayerDetection();
-    }
+        [Header("Detection Settings")]
+        [SerializeField] private LayerMask groundLayer;
+        [SerializeField] private LayerMask jumpZoneLayer;
+        [SerializeField] private LayerMask dropZoneLayer;
+        [SerializeField] private float jumpZoneRadius = 3f;
+        [SerializeField] private float dropCheckDistance = 3f;
+        [SerializeField] private float transitionDetectionRadius = 0.5f;
+        [SerializeField] private float groundCheckRadius = 0.4f;
+        [SerializeField] private float wallCheckDistance = 1.2f;
+        [SerializeField] private float minHeightDifference = 2.5f;
 
-    private void Update()
-    {
-        UpdatePlayerDetection();
-        TrackPlayerMovement();
-        UpdateGroundDetection();
-        UpdateZoneDetections();
-        UpdateTransitionPoints();
-    }
+        [Header("References")]
+        [SerializeField] private Transform groundCheck;
+        [SerializeField] private Transform wallCheck;
 
-    private void TrackPlayerMovement()
-    {
-        if (player == null) return;
+        private Transform playerTransform;
+        private Vector3 lastKnownPlayerPosition;
+        private readonly RaycastHit2D[] rayResults = new RaycastHit2D[1];
         
-        float verticalMovement = player.position.y - playerPreviousPosition.y;
-        PlayerMovingUp = verticalMovement > 0.05f;
-        ShouldDrop = verticalMovement < -0.05f;
-        playerPreviousPosition = player.position;
-    }
+        // Public properties para acceso externo
+        public bool IsGrounded { get; private set; }
+        public bool PlayerMovingUp { get; private set; }
+        public bool ShouldDrop { get; private set; }
+        public bool InJumpZone { get; private set; }
+        public bool PlayerFound { get; private set; }
+        public Vector3 PlayerPosition => playerTransform.position;
+        public List<Vector2> PlatformTransitions { get; } = new List<Vector2>();
 
-    private void UpdateGroundDetection()
-    {
-        IsGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
-    }
-
-    private void UpdateZoneDetections()
-    {
-        // Detección de Jump Zones
-        InJumpZone = Physics2D.OverlapCircle(transform.position, jumpZoneRadius, jumpZoneLayer);
-
-        // Detección de Drop Zones
-        ShouldDrop = ShouldDrop || Physics2D.OverlapCircle(transform.position, dropCheckDistance, dropZoneLayer);
-    }
-
-    private void UpdateTransitionPoints()
-    {
-        PlatformTransitions.Clear();
-        Collider2D[] nearbyPoints = Physics2D.OverlapCircleAll(
-            transform.position, 
-            transitionDetectionRadius,
-            LayerMask.GetMask("JumpPoints", "DropPoints"));
-        
-        foreach (Collider2D point in nearbyPoints)
+        private void Awake()
         {
-            PlatformTransitions.Add(point.transform.position);
+            ValidateReferences();
+            CacheReferences();
         }
-    }
 
-    public bool CheckWallForward()
-    {
-        return Physics2D.Raycast(
-            wallCheck.position, 
-            transform.right, 
-            wallCheckDistance, 
-            groundLayer
-        );
-    }
+        private void ValidateReferences()
+        {
+            if (groundCheck == null || wallCheck == null)
+            {
+                Debug.LogError($"Missing check points on {gameObject.name}");
+                enabled = false;
+            }
+        }
 
-    public bool CheckValidJump()
-    {
-        if (player == null) return false;
-        
-        float heightDifference = player.position.y - transform.position.y;
-        return Mathf.Abs(heightDifference) > minHeightDifference && 
-               !Physics2D.Linecast(transform.position, player.position, groundLayer);
-    }
+        private void CacheReferences()
+        {
+            playerTransform = GameObject.FindGameObjectWithTag("Player")?.transform;
+            if (playerTransform == null)
+            {
+                Debug.LogError("Player not found in scene!");
+                enabled = false;
+            }
+        }
 
-    private void UpdatePlayerDetection()
-    {
-        PlayerFound = player != null && Vector2.Distance(transform.position, player.position) <= 20f;
-    }
+        private void Start()
+        {
+            lastKnownPlayerPosition = playerTransform.position;
+            UpdatePlayerDetection();
+        }
 
-    private void OnDrawGizmosSelected()
-    {
-        // Dibuja área de detección de suelo
-        Gizmos.color = Color.green;
-        Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
+        private void Update()
+        {
+            if (!enabled) return;
+            
+            UpdateDetections();
+        }
 
-        // Dibuja área de detección de saltos
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, jumpZoneRadius);
+        private void UpdateDetections()
+        {
+            UpdatePlayerDetection();
+            TrackPlayerMovement();
+            UpdateGroundDetection();
+            UpdateZoneDetections();
+            UpdateTransitionPoints();
+        }
 
-        // Dibuja área de detección de caídas
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, dropCheckDistance);
+        private void TrackPlayerMovement()
+        {
+            if (playerTransform == null) return;
+            
+            float verticalMovement = playerTransform.position.y - lastKnownPlayerPosition.y;
+            PlayerMovingUp = verticalMovement > 0.05f;
+            ShouldDrop = verticalMovement < -0.05f;
+            lastKnownPlayerPosition = playerTransform.position;
+        }
 
-        // Dibuja línea de chequeo de pared
-        Gizmos.color = Color.blue;
-        Gizmos.DrawRay(wallCheck.position, transform.right * wallCheckDistance);
+        private void UpdateGroundDetection()
+        {
+            IsGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
+        }
+
+        private void UpdateZoneDetections()
+        {
+            // Detección de Jump Zones
+            InJumpZone = Physics2D.OverlapCircle(transform.position, jumpZoneRadius, jumpZoneLayer);
+
+            // Detección de Drop Zones
+            ShouldDrop = ShouldDrop || Physics2D.OverlapCircle(transform.position, dropCheckDistance, dropZoneLayer);
+        }
+
+        private void UpdateTransitionPoints()
+        {
+            PlatformTransitions.Clear();
+            Collider2D[] nearbyPoints = Physics2D.OverlapCircleAll(
+                transform.position, 
+                transitionDetectionRadius,
+                LayerMask.GetMask("JumpPoints", "DropPoints"));
+            
+            foreach (Collider2D point in nearbyPoints)
+            {
+                PlatformTransitions.Add(point.transform.position);
+            }
+        }
+
+        public bool CheckWallForward()
+        {
+            return Physics2D.Raycast(
+                wallCheck.position, 
+                transform.right, 
+                wallCheckDistance, 
+                groundLayer
+            );
+        }
+
+        public bool CheckValidJump()
+        {
+            if (playerTransform == null) return false;
+            
+            float heightDifference = playerTransform.position.y - transform.position.y;
+            return Mathf.Abs(heightDifference) > minHeightDifference && 
+                   !Physics2D.Linecast(transform.position, playerTransform.position, groundLayer);
+        }
+
+        private void UpdatePlayerDetection()
+        {
+            if (playerTransform == null)
+            {
+                TryFindPlayer();
+                return;
+            }
+
+            PlayerFound = Vector2.Distance(transform.position, playerTransform.position) <= 20f;
+        }
+
+        private void TryFindPlayer()
+        {
+            var player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null)
+            {
+                playerTransform = player.transform;
+            }
+        }
+
+        private void OnDrawGizmosSelected()
+        {
+            // Dibuja área de detección de suelo
+            Gizmos.color = Color.green;
+            Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
+
+            // Dibuja área de detección de saltos
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(transform.position, jumpZoneRadius);
+
+            // Dibuja área de detección de caídas
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(transform.position, dropCheckDistance);
+
+            // Dibuja línea de chequeo de pared
+            Gizmos.color = Color.blue;
+            Gizmos.DrawRay(wallCheck.position, transform.right * wallCheckDistance);
+        }
     }
 }

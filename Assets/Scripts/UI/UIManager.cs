@@ -1,102 +1,134 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using Core.Events;
+using Core.Player;
+using Core.Characters;
+using Player.Movement;
+using Core.Managers; // <--- Added this using directive
 
-public class UIManager : MonoBehaviour
+namespace Core.UI
 {
-    [Header("Health UI")]
-    [SerializeField] private Slider healthSlider;
-    [SerializeField] private TextMeshProUGUI healthText;
-
-    [Header("Sprint UI")]
-    [SerializeField] private Slider sprintSlider;
-
-    [Header("Dash UI")]
-    [SerializeField] private Image dashCooldownImage;
-
-    [Header("Experience UI")]
-    [SerializeField] private TextMeshProUGUI experienceText;
-    // Removemos el slider ya que no necesitamos mostrar progreso
-
-    [Header("Game Over UI")]
-    [SerializeField] private GameObject gameOverPanel;
-
-    private void Start()
+    public class UIManager : MonoBehaviour
     {
-        // Get references
-        var player = GameObject.FindGameObjectWithTag("Player");
-        var health = player.GetComponent<Health>();
-        var movement = player.GetComponent<PatchyMovement>();
-        var stats = player.GetComponent<PlayerStats>();
+        [Header("Health UI")]
+        [SerializeField] private Slider healthSlider;
+        [SerializeField] private TextMeshProUGUI healthText;
 
-        // Subscribe to events
-        if (health != null)
+        [Header("Sprint UI")]
+        [SerializeField] private Slider sprintSlider;
+
+        [Header("Dash UI")]
+        [SerializeField] private Image dashCooldownImage;
+
+        [Header("Experience UI")]
+        [SerializeField] private TextMeshProUGUI experienceText;
+        // Removemos el slider ya que no necesitamos mostrar progreso
+
+        [Header("Game Over UI")]
+        [SerializeField] private GameObject gameOverPanel;
+
+        [Header("References")]
+        [SerializeField] private PlayerStats playerReference;
+        [SerializeField] private Health playerHealth;
+        [SerializeField] private PatchyMovement playerMovement;
+
+        private void Awake()
         {
-            health.OnHealthValueChanged += UpdateHealthUI;
+            ValidateReferences();
         }
 
-        if (movement != null)
+        private void ValidateReferences()
         {
-            movement.OnDashCooldownUpdate += UpdateDashUI;
-            movement.OnSprintValueChanged += UpdateSprintUI;
+            if (playerReference == null || playerHealth == null || playerMovement == null)
+            {
+                Debug.LogError($"Missing required references on {gameObject.name}");
+                enabled = false;
+                return;
+            }
         }
 
-        if (stats != null)
+        private void Start()
         {
-            stats.OnExperienceChanged += UpdateExperienceUI;
+            SubscribeToEvents();
+            InitializeUI();
         }
 
-        if (GameManager.Instance != null)
+        private void SubscribeToEvents()
         {
-            GameManager.Instance.OnGameOver += ShowGameOver;
+            playerHealth.OnHealthValueChanged += UpdateHealthUI;
+            playerMovement.OnDashCooldownUpdate += UpdateDashUI;
+            playerMovement.OnSprintValueChanged += UpdateSprintUI;
+            playerReference.OnExperienceChanged += UpdateExperienceUI;
+
+            if (GameManager.Instance != null) // Access the singleton instance correctly
+            {
+                GameManager.Instance.OnGameOver += ShowGameOver;
+            }
         }
 
-        if (gameOverPanel != null)
+        private void InitializeUI()
         {
-            gameOverPanel.SetActive(false);
+            if (gameOverPanel != null)
+            {
+                gameOverPanel.SetActive(false);
+            }
         }
-    }
 
-    private void UpdateHealthUI(float currentHealth, float maxHealth)
-    {
-        if (healthSlider != null)
-            healthSlider.value = currentHealth / maxHealth;
-        
-        if (healthText != null)
-            healthText.text = $"{Mathf.Ceil(currentHealth)}/{maxHealth}";
-    }
-
-    private void UpdateSprintUI(float sprintValue)
-    {
-        if (sprintSlider != null)
-            sprintSlider.value = sprintValue;
-    }
-
-    private void UpdateDashUI(float cooldownPercentage)
-    {
-        if (dashCooldownImage != null)
-            dashCooldownImage.fillAmount = 1 - cooldownPercentage;
-    }
-
-    private void UpdateExperienceUI(int experience)
-    {
-        if (experienceText != null)
-            experienceText.text = $"EXP: {experience}";
-    }
-
-    private void ShowGameOver()
-    {
-        if (gameOverPanel != null)
+        private void UpdateHealthUI(float currentHealth, float maxHealth)
         {
-            gameOverPanel.SetActive(true);
+            if (healthSlider != null)
+                healthSlider.value = currentHealth / maxHealth;
+            
+            if (healthText != null)
+                healthText.text = $"{Mathf.Ceil(currentHealth)}/{maxHealth}";
         }
-    }
 
-    private void OnDestroy()
-    {
-        if (GameManager.Instance != null)
+        private void UpdateSprintUI(float sprintValue)
         {
-            GameManager.Instance.OnGameOver -= ShowGameOver;
+            if (sprintSlider != null)
+                sprintSlider.value = sprintValue;
+        }
+
+        private void UpdateDashUI(float cooldownPercentage)
+        {
+            if (dashCooldownImage != null)
+                dashCooldownImage.fillAmount = 1 - cooldownPercentage;
+        }
+
+        private void UpdateExperienceUI(int experience)
+        {
+            if (experienceText != null)
+                experienceText.text = $"EXP: {experience}";
+        }
+
+        private void ShowGameOver()
+        {
+            if (gameOverPanel != null)
+            {
+                gameOverPanel.SetActive(true);
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.OnGameOver -= ShowGameOver;
+            }
+            if (playerHealth != null)
+            {
+                playerHealth.OnHealthValueChanged -= UpdateHealthUI;
+            }
+            if (playerMovement != null)
+            {
+                playerMovement.OnDashCooldownUpdate -= UpdateDashUI;
+                playerMovement.OnSprintValueChanged -= UpdateSprintUI;
+            }
+            if (playerReference != null)
+            {
+                playerReference.OnExperienceChanged -= UpdateExperienceUI;
+            }
         }
     }
 }

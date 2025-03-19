@@ -1,8 +1,12 @@
 using UnityEngine;
+using System.Collections.Generic;
+using Core.Enemy; // <--- Added this using directive
+using Core.Enemy.AI; // <--- Added this using directive
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(EnemyDetection))]
 [RequireComponent(typeof(EnemyPathfinding))]
+[RequireComponent(typeof(EnemyAIStateMachine))]
 public class EnemyMovement : MonoBehaviour
 {
     [Header("Movement Settings")]
@@ -16,9 +20,19 @@ public class EnemyMovement : MonoBehaviour
     [SerializeField] private float groundDrag = 5f;
     [SerializeField] private float airDrag = 1f;
 
+    [Header("Patrol Settings")]
+    [SerializeField] private List<Transform> patrolPoints;
+    [SerializeField] private float patrolWaitTime = 2f;
+    [SerializeField] private float patrolWaitTimeVariance = 0.5f;
+    [SerializeField] private bool randomPatrol = false;
+    private int currentPatrolIndex = 0;
+    private float patrolTimer = 0f;
+    private bool isWaiting = false;
+
     private Rigidbody2D rb;
     private EnemyDetection detection;
     private EnemyPathfinding pathfinding;
+    private EnemyAIStateMachine stateMachine;
     private int targetPathIndex;
     private float nextJumpTime;
     private bool isFacingRight = true;
@@ -29,6 +43,7 @@ public class EnemyMovement : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         detection = GetComponent<EnemyDetection>();
         pathfinding = GetComponent<EnemyPathfinding>();
+        stateMachine = GetComponent<EnemyAIStateMachine>();
     }
 
     private void Update()
@@ -36,6 +51,11 @@ public class EnemyMovement : MonoBehaviour
         UpdateMovementDirection();
         HandleJumping();
         AdjustPhysicsMaterial();
+        
+        if (stateMachine.CurrentState == EnemyAIStateMachine.AIState.Patrolling)
+        {
+            Patrol();
+        }
     }
 
     private void FixedUpdate()
@@ -47,18 +67,57 @@ public class EnemyMovement : MonoBehaviour
     {
         movementDirection = Vector2.zero;
         
-        if (pathfinding.CurrentPath == null || pathfinding.CurrentPath.Count == 0) return;
-
-        Vector2 currentWaypoint = pathfinding.CurrentPath[targetPathIndex];
-        movementDirection = (currentWaypoint - (Vector2)transform.position).normalized;
-
-        if (Vector2.Distance(transform.position, currentWaypoint) < nodeDistance)
+        if (stateMachine.CurrentState == EnemyAIStateMachine.AIState.Chasing)
         {
-            targetPathIndex++;
-            if (targetPathIndex >= pathfinding.CurrentPath.Count)
-                pathfinding.UpdatePath();
-        }
+            if (pathfinding.CurrentPath == null || pathfinding.CurrentPath.Count == 0) return;
 
+            Vector2 currentWaypoint = pathfinding.CurrentPath[targetPathIndex];
+            movementDirection = (currentWaypoint - (Vector2)transform.position).normalized;
+
+            if (Vector2.Distance(transform.position, currentWaypoint) < nodeDistance)
+            {
+                targetPathIndex++;
+                if (targetPathIndex >= pathfinding.CurrentPath.Count)
+                    pathfinding.UpdatePath();
+            }
+        }
+        else if (stateMachine.CurrentState == EnemyAIStateMachine.AIState.Patrolling)
+        {
+            if (patrolPoints.Count == 0) return;
+
+            Vector2 currentWaypoint = patrolPoints[currentPatrolIndex].position;
+            
+            if (pathfinding.CurrentPath != null && pathfinding.CurrentPath.Count > 0)
+            {
+                currentWaypoint = pathfinding.CurrentPath[targetPathIndex];
+                movementDirection = (currentWaypoint - (Vector2)transform.position).normalized;
+
+                if (Vector2.Distance(transform.position, currentWaypoint) < nodeDistance)
+                {
+                    targetPathIndex++;
+                    if (targetPathIndex >= pathfinding.CurrentPath.Count)
+                    {
+                        targetPathIndex = 0;
+                        isWaiting = true;
+                        patrolTimer = patrolWaitTime + Random.Range(-patrolWaitTimeVariance, patrolWaitTimeVariance);
+                    }
+                }
+            }
+            else
+            {
+                movementDirection = (currentWaypoint - (Vector2)transform.position).normalized;
+
+                if (Vector2.Distance(transform.position, currentWaypoint) < nodeDistance)
+                {
+                    if (!isWaiting)
+                    {
+                        isWaiting = true;
+                        patrolTimer = patrolWaitTime + Random.Range(-patrolWaitTimeVariance, patrolWaitTimeVariance);
+                    }
+                }
+            }
+        }
+        
         HandleFlipping(movementDirection);
     }
 
@@ -110,6 +169,39 @@ public class EnemyMovement : MonoBehaviour
             Vector3 scale = transform.localScale;
             scale.x *= -1;
             transform.localScale = scale;
+        }
+    }
+
+    private void Patrol()
+    {
+        if (patrolPoints.Count == 0) return;
+
+        if (isWaiting)
+        {
+            patrolTimer -= Time.deltaTime;
+            if (patrolTimer <= 0)
+            {
+                isWaiting = false;
+                if (randomPatrol)
+                {
+                    currentPatrolIndex = Random.Range(0, patrolPoints.Count);
+                }
+                else
+                {
+                    currentPatrolIndex = (currentPatrolIndex + 1) % patrolPoints.Count;
+                }
+                if (pathfinding != null)
+                {
+                    pathfinding.UpdatePath();
+                }
+            }
+        }
+        else
+        {
+            if (pathfinding != null)
+            {
+                pathfinding.UpdatePath();
+            }
         }
     }
 

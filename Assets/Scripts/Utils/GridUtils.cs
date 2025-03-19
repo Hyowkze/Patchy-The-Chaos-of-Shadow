@@ -1,18 +1,32 @@
 using UnityEngine;
+using Core.Utils;
 
-public static class GridUtils
+namespace Core.Utils
 {
-    public static bool IsValidPosition(Vector3 worldPoint, LayerMask groundLayer, LayerMask obstacleLayer, float checkRadius = 0.5f)
+    public static class GridUtils
     {
-        RaycastHit2D groundHit = Physics2D.Raycast(worldPoint + Vector3.up * 1f, Vector2.down, 2f, groundLayer);
-        if (!groundHit) return false;
+        private static readonly RaycastHit2D[] rayResults = new RaycastHit2D[1];
+        //private static readonly Collider2D[] colliderResults = new Collider2D[1]; // No longer needed
 
-        Collider2D[] obstacles = Physics2D.OverlapCircleAll(worldPoint, checkRadius, obstacleLayer);
-        return obstacles.Length == 0;
-    }
+        public static bool IsValidPosition(Vector3 worldPoint, LayerMask groundLayer, LayerMask obstacleLayer, float checkRadius = 0.5f)
+        {
+            if (Physics2D.RaycastNonAlloc(worldPoint + Vector3.up, Vector2.down, rayResults, 2f, groundLayer) == 0)
+                return false;
 
-    public static int GetManhattanDistance(Vector2Int posA, Vector2Int posB)
-    {
-        return Mathf.Abs(posA.x - posB.x) + Mathf.Abs(posA.y - posB.y);
+            //return Physics2D.OverlapCircleNonAlloc(worldPoint, checkRadius, colliderResults, obstacleLayer) == 0; // Old line
+            return Physics2D.OverlapCircle(worldPoint, checkRadius, obstacleLayer) == null; // New line
+        }
+
+        public static int GetManhattanDistance(Vector2Int posA, Vector2Int posB)
+        {
+            return Mathf.Abs(posA.x - posB.x) + Mathf.Abs(posA.y - posB.y);
+        }
+
+        public static Vector2 GetClosestPointOnGrid(Vector2 position, float gridSize)
+        {
+            float x = Mathf.Round(position.x / gridSize) * gridSize;
+            float y = Mathf.Round(position.y / gridSize) * gridSize;
+            return new Vector2(x, y);
+        }
     }
 }

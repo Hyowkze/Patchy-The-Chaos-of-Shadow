@@ -12,6 +12,16 @@ public class MovementConfig : ScriptableObject
 
     [Header("Sprint Settings")]
     public SprintSettings SprintSettings;
+
+    [Header("Physics Settings")]
+    public float GroundFriction = 10f;
+    public float AirControl = 0.5f;
+    public float CoyoteTime = 0.2f;
+    public float JumpBufferTime = 0.2f;
+
+    [Header("Movement Thresholds")]
+    public float MinimumMoveSpeed = 0.1f;
+    public float MaxFallSpeed = 20f;
 }
 
 [System.Serializable]

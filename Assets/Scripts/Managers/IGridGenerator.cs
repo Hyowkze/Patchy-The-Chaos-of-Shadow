@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 public interface IGridGenerator
 {
-    List<Vector3> GenerateGrid(Vector3 center, LayerMask groundLayer, LayerMask obstacleLayer);
+    List<Vector3> GenerateGrid(Vector3 origin, LayerMask groundLayer, LayerMask obstacleLayer);
 }
 
 public class DefaultGridGenerator : IGridGenerator
@@ -15,10 +15,10 @@ public class DefaultGridGenerator : IGridGenerator
         this.config = config;
     }
 
-    public List<Vector3> GenerateGrid(Vector3 center, LayerMask groundLayer, LayerMask obstacleLayer)
+    public List<Vector3> GenerateGrid(Vector3 origin, LayerMask groundLayer, LayerMask obstacleLayer)
     {
         List<Vector3> positions = new List<Vector3>();
-        Vector3 worldBottomLeft = center - new Vector3(config.GridWorldSize.x/2, config.GridWorldSize.y/2);
+        Vector3 worldBottomLeft = origin - new Vector3(config.GridWorldSize.x/2, config.GridWorldSize.y/2);
 
         for (float x = 0; x < config.GridWorldSize.x; x += config.NodeSize)
         {

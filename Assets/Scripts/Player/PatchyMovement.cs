@@ -1,35 +1,38 @@
 using UnityEngine;
 using Player.Movement;
+using Core.Player.Movement;
+using Core.Combat;
+using Player.Input; // <--- Added this using directive
 
 [RequireComponent(typeof(Rigidbody2D))]
+[RequireComponent(typeof(MovementStateMachine))]
 public class PatchyMovement : MonoBehaviour, IMoveable
 {
     [Header("Configuration")]
     [SerializeField] private MovementConfig moveConfig;
     [SerializeField] private PhysicsConfig physicsConfig;
-    
+
     [Header("Layer Detection")]
     [SerializeField] private LayerMask wallLayer;
     [SerializeField] private LayerMask groundLayer;
-    
+
     [Header("Ground Check")]
     [SerializeField] private Transform groundCheckPoint;
-    
+
     private IMovementBehavior basicMovement;
     private Player.Movement.IDashBehavior dashBehavior;
     private Player.Movement.ISprintBehavior sprintBehavior;
     private Rigidbody2D rb;
     private PlayerInputHandler inputHandler;
     private CombatSystem combatSystem;
-    
-    private bool IsAgainstWall; // Re-added
-    private bool IsGrounded;
-    private float LastMoveDirection; // Added
+    private MovementStateMachine stateMachine; // Added
 
-    // Properties from MovementConfig that need to be added
+    private bool IsAgainstWall;
+    private bool IsGrounded;
+    private float LastMoveDirection;
+
     private float MoveSpeed => moveConfig.MoveSpeed;
     private float JumpForce => moveConfig.JumpForce;
-    private float SprintMultiplier => moveConfig.SprintSettings.SprintMultiplier;
     private float WallCollisionAngleThreshold => physicsConfig.WallCollisionAngleThreshold;
     private float GroundCollisionAngleThreshold => physicsConfig.GroundCollisionAngleThreshold;
 
@@ -40,10 +43,8 @@ public class PatchyMovement : MonoBehaviour, IMoveable
     public event System.Action<float> OnDashCooldownUpdate;
     public event System.Action<float> OnSprintValueChanged;
 
-    // Cache component references
     private void Awake()
     {
-        // Validate required components
         if (moveConfig == null || physicsConfig == null)
         {
             Debug.LogError($"Missing required configuration on {gameObject.name}");
@@ -53,7 +54,8 @@ public class PatchyMovement : MonoBehaviour, IMoveable
 
         rb = GetComponent<Rigidbody2D>();
         combatSystem = GetComponent<CombatSystem>();
-        
+        stateMachine = GetComponent<MovementStateMachine>(); // Added
+
         InitializeBehaviors();
     }
 
@@ -65,7 +67,7 @@ public class PatchyMovement : MonoBehaviour, IMoveable
             enabled = false;
             return;
         }
-        
+
         basicMovement = new GroundMovement(moveConfig);
         dashBehavior = new Player.Movement.DashBehavior(moveConfig.DashSettings);
         sprintBehavior = new SprintBehavior(moveConfig.SprintSettings);
@@ -85,51 +87,65 @@ public class PatchyMovement : MonoBehaviour, IMoveable
         {
             combatSystem.OnAttackStateChanged += HandleAttackState;
         }
-        
+
         inputHandler.OnDashInputChanged += HandleDashInput;
+        inputHandler.OnMoveInputChanged += HandleMoveInput;
+        inputHandler.OnJumpInputChanged += HandleJumpInput;
+        inputHandler.OnSprintInputChanged += HandleSprintInput;
     }
 
     private void Update()
     {
         if (!canMove) return;
 
-        HandleInputs();
         UpdateDashState();
         UpdateSprintState();
     }
 
-    private void HandleInputs()
+    private void HandleMoveInput(Vector2 input)
     {
-        horizontalInput = inputHandler.MoveInput.x;
-
-        if (inputHandler.JumpTriggered && IsGrounded)
-            Jump();
-
+        horizontalInput = input.x;
         HandleSpriteFlip();
+    }
+
+    private void HandleJumpInput()
+    {
+        if (IsGrounded)
+        {
+            Jump();
+        }
+    }
+
+    private void HandleSprintInput()
+    {
+        UpdateSprintState();
     }
 
     private void HandleDashInput()
     {
         if (dashBehavior.CanDash)
+        {
             InitiateDash();
+        }
     }
 
     private void Jump()
     {
         rb.linearVelocity = new Vector2(rb.linearVelocity.x, JumpForce);
-        inputHandler.JumpTriggered = false;
+        stateMachine.ChangeState(MovementStateMachine.MovementState.Jumping);
     }
 
     private void InitiateDash()
     {
         Vector2 dashDir = CalculateDashDirection();
         rb.linearVelocity = dashBehavior.PerformDash(dashDir);
+        stateMachine.ChangeState(MovementStateMachine.MovementState.Dashing);
     }
 
     private Vector2 CalculateDashDirection()
     {
-        return inputHandler.MoveInput != Vector2.zero 
-            ? inputHandler.MoveInput.normalized 
+        return inputHandler.MoveInput != Vector2.zero
+            ? inputHandler.MoveInput.normalized
             : new Vector2(facingRight ? 1f : -1f, 0f);
     }
 
@@ -137,12 +153,30 @@ public class PatchyMovement : MonoBehaviour, IMoveable
     {
         dashBehavior.UpdateDashState(Time.deltaTime);
         OnDashCooldownUpdate?.Invoke(dashBehavior.CooldownProgress);
+
+        if (dashBehavior.IsDashing && stateMachine.CurrentState != MovementStateMachine.MovementState.Dashing)
+        {
+            stateMachine.ChangeState(MovementStateMachine.MovementState.Dashing);
+        }
+        else if (!dashBehavior.IsDashing && stateMachine.CurrentState == MovementStateMachine.MovementState.Dashing)
+        {
+            UpdateMovementState();
+        }
     }
 
     private void UpdateSprintState()
     {
         float sprintMultiplier = sprintBehavior.CalculateSprintMultiplier(inputHandler.SprintValue);
         OnSprintValueChanged?.Invoke(sprintMultiplier);
+
+        if (inputHandler.SprintValue > 0 && stateMachine.CurrentState != MovementStateMachine.MovementState.Sprinting)
+        {
+            stateMachine.ChangeState(MovementStateMachine.MovementState.Sprinting);
+        }
+        else if (inputHandler.SprintValue == 0 && stateMachine.CurrentState == MovementStateMachine.MovementState.Sprinting)
+        {
+            UpdateMovementState();
+        }
     }
 
     private void HandleSpriteFlip()
@@ -159,12 +193,13 @@ public class PatchyMovement : MonoBehaviour, IMoveable
 
     private void FixedUpdate()
     {
-        if (!canMove || dashBehavior.IsDashing) return;
+        if (!canMove) return;
+
+        if (stateMachine.CurrentState == MovementStateMachine.MovementState.Dashing) return;
 
         float sprintMultiplier = sprintBehavior.CalculateSprintMultiplier(inputHandler.SprintValue);
         Vector2 targetVelocity = basicMovement.CalculateVelocity(rb.linearVelocity, horizontalInput * sprintMultiplier);
 
-        // Prevent movement into the wall
         if (IsAgainstWall && Mathf.Sign(horizontalInput) == Mathf.Sign(LastMoveDirection))
         {
             targetVelocity.x = 0;
@@ -172,6 +207,8 @@ public class PatchyMovement : MonoBehaviour, IMoveable
         LastMoveDirection = horizontalInput;
 
         rb.linearVelocity = targetVelocity;
+
+        UpdateMovementState();
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
@@ -179,15 +216,19 @@ public class PatchyMovement : MonoBehaviour, IMoveable
         foreach (ContactPoint2D contact in collision.contacts)
         {
             float angle = Vector2.Angle(contact.normal, Vector2.up);
-            
+
             if (((1 << collision.gameObject.layer) & wallLayer) != 0 && angle > WallCollisionAngleThreshold)
             {
                 IsAgainstWall = true;
             }
-            
+
             if (((1 << collision.gameObject.layer) & groundLayer) != 0 && angle < GroundCollisionAngleThreshold)
             {
                 IsGrounded = true;
+                if (stateMachine.CurrentState == MovementStateMachine.MovementState.Jumping)
+                {
+                    UpdateMovementState();
+                }
             }
         }
     }
@@ -198,7 +239,7 @@ public class PatchyMovement : MonoBehaviour, IMoveable
         {
             IsAgainstWall = false;
         }
-        
+
         if (((1 << collision.gameObject.layer) & groundLayer) != 0)
         {
             IsGrounded = false;
@@ -224,7 +265,13 @@ public class PatchyMovement : MonoBehaviour, IMoveable
         {
             combatSystem.OnAttackStateChanged -= HandleAttackState;
         }
-        inputHandler.OnDashInputChanged -= HandleDashInput;
+        if (inputHandler != null)
+        {
+            inputHandler.OnDashInputChanged -= HandleDashInput;
+            inputHandler.OnMoveInputChanged -= HandleMoveInput;
+            inputHandler.OnJumpInputChanged -= HandleJumpInput;
+            inputHandler.OnSprintInputChanged -= HandleSprintInput;
+        }
     }
 
     private void OnDisable()
@@ -233,7 +280,29 @@ public class PatchyMovement : MonoBehaviour, IMoveable
         {
             combatSystem.OnAttackStateChanged -= HandleAttackState;
         }
-        inputHandler.OnDashInputChanged -= HandleDashInput;
+        if (inputHandler != null)
+        {
+            inputHandler.OnDashInputChanged -= HandleDashInput;
+            inputHandler.OnMoveInputChanged -= HandleMoveInput;
+            inputHandler.OnJumpInputChanged -= HandleJumpInput;
+            inputHandler.OnSprintInputChanged -= HandleSprintInput;
+        }
+    }
+
+    private void UpdateMovementState()
+    {
+        if (!IsGrounded)
+        {
+            stateMachine.ChangeState(MovementStateMachine.MovementState.Jumping);
+        }
+        else if (horizontalInput != 0)
+        {
+            stateMachine.ChangeState(MovementStateMachine.MovementState.Walking);
+        }
+        else
+        {
+            stateMachine.ChangeState(MovementStateMachine.MovementState.Idle);
+        }
     }
 }
 

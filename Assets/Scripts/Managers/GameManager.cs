@@ -1,99 +1,118 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using System.Collections;
 using System.Collections.Generic;
+using Core.Managers;
+using Core.Player; // <--- Added this using directive
 
-public class GameManager : MonoBehaviour
+namespace Core.Managers
 {
-    private static GameManager instance;
-    public static GameManager Instance
+    public class GameManager : MonoBehaviour
     {
-        get
+        [SerializeField] private PlayerStats playerStats;
+        private readonly HashSet<string> defeatedEnemyIds = new HashSet<string>();
+        private bool isGameOver;
+
+        public event System.Action OnGameOver;
+        
+        // Thread-safe singleton
+        private static readonly object _lock = new object();
+        private static GameManager instance;
+        
+        public static GameManager Instance
+        {
+            get
+            {
+                if (applicationIsQuitting)
+                {
+                    return null;
+                }
+
+                lock (_lock)
+                {
+                    if (instance == null)
+                    {
+                        instance = FindAnyObjectByType<GameManager>();
+                        if (instance == null)
+                        {
+                            var singleton = new GameObject("GameManager");
+                            instance = singleton.AddComponent<GameManager>();
+                            DontDestroyOnLoad(singleton);
+                        }
+                    }
+                    return instance;
+                }
+            }
+        }
+
+        private static bool applicationIsQuitting = false;
+
+        private void Awake()
         {
             if (instance == null)
             {
-                instance = FindFirstObjectByType<GameManager>();
-                if (instance == null)
-                {
-                    GameObject go = new GameObject("GameManager");
-                    instance = go.AddComponent<GameManager>();
-                }
+                instance = this;
+                DontDestroyOnLoad(gameObject);
+                Initialize();
             }
-            return instance;
+            else
+            {
+                Destroy(gameObject);
+            }
         }
-    }
 
-    [SerializeField] private PlayerStats playerStats;
-    
-    private readonly HashSet<GameObject> defeatedEnemies = new HashSet<GameObject>();
-    private bool isGameOver;
-
-    public event System.Action OnGameOver;
-
-    private void Awake()
-    {
-        if (instance == null)
+        private void Initialize()
         {
-            instance = this;
-            DontDestroyOnLoad(gameObject);
-            Initialize();
+            if (playerStats == null)
+            {
+                playerStats = FindAnyObjectByType<PlayerStats>();
+            }
         }
-        else
+
+        public void RegisterDefeatedEnemy(string enemyId)
         {
-            Destroy(gameObject);
+            defeatedEnemyIds.Add(enemyId);
         }
-    }
 
-    private void Initialize()
-    {
-        if (playerStats == null)
+        public bool IsEnemyDefeated(string enemyId)
         {
-            playerStats = FindFirstObjectByType<PlayerStats>();
+            return defeatedEnemyIds.Contains(enemyId);
         }
-    }
 
-    public void RegisterDefeatedEnemy(GameObject enemy)
-    {
-        defeatedEnemies.Add(enemy);
-    }
-
-    public bool IsEnemyDefeated(GameObject enemy)
-    {
-        return defeatedEnemies.Contains(enemy);
-    }
-
-    public void HandlePlayerDeath()
-    {
-        playerStats.HandleDeath();
-    }
-
-    public void ResetGame()
-    {
-        defeatedEnemies.Clear();
-    }
-
-    public void TriggerGameOver(float delay = 2f)
-    {
-        if (isGameOver) return;
-        
-        isGameOver = true;
-        OnGameOver?.Invoke();
-        StartCoroutine(HandleGameOver(delay));
-    }
-
-    private IEnumerator HandleGameOver(float delay)
-    {
-        yield return new WaitForSeconds(delay);
-        // Aquí puedes cargar la escena inicial o reiniciar el nivel
-        UnityEngine.SceneManagement.SceneManager.LoadScene(
-            UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex
-        );
-    }
-
-    private void OnDestroy()
-    {
-        if (instance == this)
+        public void HandlePlayerDeath()
         {
-            instance = null;
+            playerStats.HandleDeath();
+        }
+
+        public void ResetGame()
+        {
+            defeatedEnemyIds.Clear();
+        }
+
+        public void TriggerGameOver(float delay = 2f)
+        {
+            if (isGameOver) return;
+            
+            isGameOver = true;
+            OnGameOver?.Invoke();
+            StartCoroutine(HandleGameOver(delay));
+        }
+
+        private IEnumerator HandleGameOver(float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            // Aquí puedes cargar la escena inicial o reiniciar el nivel
+            SceneManager.LoadScene(
+                SceneManager.GetActiveScene().buildIndex
+            );
+        }
+
+        private void OnDestroy()
+        {
+            if (instance == this)
+            {
+                applicationIsQuitting = true;
+            }
         }
     }
 }
