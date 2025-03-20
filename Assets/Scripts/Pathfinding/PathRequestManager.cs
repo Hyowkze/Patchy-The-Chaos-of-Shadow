@@ -11,22 +11,25 @@ namespace Core.Pathfinding
         private Queue<PathRequest> pathRequestQueue;
         private PathRequest currentRequest;
         private bool isProcessingPath;
-        private GridSystem gridSystem; // Add a reference to GridSystem
 
         [SerializeField] private PathfindingConfig config; // Add a field to hold the PathfindingConfig
 
         private void Awake()
         {
+            if (instance != null && instance != this)
+            {
+                Destroy(this);
+                return;
+            }
             instance = this;
             pathRequestQueue = new Queue<PathRequest>();
-            // Initialize GridSystem here, after the config has been assigned
+            // Validate PathfindingConfig
             if (config == null)
             {
                 Debug.LogError("PathfindingConfig is not assigned in PathRequestManager!");
                 enabled = false;
                 return;
             }
-            gridSystem = new GridSystem(config);
         }
 
         public static void RequestPath(Vector3 pathStart, Vector3 pathEnd, System.Action<List<Vector3>> callback)
@@ -47,8 +50,20 @@ namespace Core.Pathfinding
 
         private async void ProcessPathRequest()
         {
+            // Get the start and end nodes from the world positions
+            PathNode startNode = GridSystem.Instance.NodeFromWorldPoint(currentRequest.pathStart);
+            PathNode endNode = GridSystem.Instance.NodeFromWorldPoint(currentRequest.pathEnd);
+
+            // Check if startNode or endNode is null
+            if (startNode == null || endNode == null)
+            {
+                Debug.LogError($"Start or End node is null. Start: {startNode}, End: {endNode}");
+                FinishProcessingPath(new List<Vector3>()); // Return an empty path
+                return;
+            }
+
             List<Vector3> waypoints = await Task.Run(() =>
-                gridSystem.FindPath(currentRequest.pathStart, currentRequest.pathEnd) // Use the instance of GridSystem
+                AStar.FindPath(startNode, endNode) // Correct call to AStar.FindPath
             );
 
             FinishProcessingPath(waypoints);

@@ -1,7 +1,7 @@
 using UnityEngine;
 using Core.Player.Movement;
 using Core.Interfaces;
-using Player.Movement; // Added this using directive
+using Player.Movement; 
 
 namespace Core.Player.Movement
 {
@@ -9,7 +9,7 @@ namespace Core.Player.Movement
     public class MovementStateMachine : MonoBehaviour
     {
         [SerializeField] private PatchyMovement movement;
-        [SerializeField] private Animator animator; // Added for animation control
+        [SerializeField] private Animator animator;
         [SerializeField] private MovementConfig config;
 
         private static readonly int AnimatorState = Animator.StringToHash("State");
@@ -40,7 +40,7 @@ namespace Core.Player.Movement
                 movement = GetComponent<PatchyMovement>();
                 Debug.LogWarning($"Movement reference was not set on {gameObject.name}. Auto-assigning.");
             }
-            factory = new MovementStateFactory(movement, config);
+            factory = new MovementStateFactory(movement, config, this); // Line 42
         }
 
         private void Start()
@@ -60,31 +60,10 @@ namespace Core.Player.Movement
 
         private void EnterState(MovementState state)
         {
-            currentState = factory.GetState(state);
+            currentState = factory.GetState(state); // Line 26
+            currentState.OnStateChangeRequested += ChangeState; 
             currentState.Enter();
-            switch (state)
-            {
-                case MovementState.Idle:
-                    animator?.SetInteger(AnimatorState, 0);
-                    Debug.Log("Entering Idle State");
-                    break;
-                case MovementState.Walking:
-                    animator?.SetInteger(AnimatorState, 1);
-                    Debug.Log("Entering Walking State");
-                    break;
-                case MovementState.Jumping:
-                    animator?.SetInteger(AnimatorState, 2);
-                    Debug.Log("Entering Jumping State");
-                    break;
-                case MovementState.Dashing:
-                    animator?.SetInteger(AnimatorState, 3);
-                    Debug.Log("Entering Dashing State");
-                    break;
-                case MovementState.Sprinting:
-                    animator?.SetInteger(AnimatorState, 4);
-                    Debug.Log("Entering Sprinting State");
-                    break;
-            }
+        UpdateAnimator(state);
         }
 
         private void ExitState(MovementState state)
@@ -92,24 +71,7 @@ namespace Core.Player.Movement
             if (currentState != null)
             {
                 currentState.Exit();
-            }
-            switch (state)
-            {
-                case MovementState.Idle:
-                    Debug.Log("Exiting Idle State");
-                    break;
-                case MovementState.Walking:
-                    Debug.Log("Exiting Walking State");
-                    break;
-                case MovementState.Jumping:
-                    Debug.Log("Exiting Jumping State");
-                    break;
-                case MovementState.Dashing:
-                    Debug.Log("Exiting Dashing State");
-                    break;
-                case MovementState.Sprinting:
-                    Debug.Log("Exiting Sprinting State");
-                    break;
+                currentState.OnStateChangeRequested -= ChangeState;
             }
         }
 
@@ -121,6 +83,28 @@ namespace Core.Player.Movement
         private void FixedUpdate()
         {
             currentState?.FixedUpdate();
+        }
+
+        private void UpdateAnimator(MovementState state)
+        {
+            switch (state)
+            {
+                case MovementState.Idle:
+                    animator?.SetInteger(AnimatorState, 0);
+                    break;
+                case MovementState.Walking:
+                    animator?.SetInteger(AnimatorState, 1);
+                    break;
+                case MovementState.Jumping:
+                    animator?.SetInteger(AnimatorState, 2);
+                    break;
+                case MovementState.Dashing:
+                    animator?.SetInteger(AnimatorState, 3);
+                    break;
+                case MovementState.Sprinting:
+                    animator?.SetInteger(AnimatorState, 4);
+                    break;
+            }
         }
     }
 }

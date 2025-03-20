@@ -1,7 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
-using Core.Enemy; // <--- Added this using directive
-using Core.Enemy.AI; // <--- Added this using directive
+using Core.Enemy;
+using Core.Enemy.AI;
+using Core.Utils;
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(EnemyDetection))]
@@ -51,7 +52,7 @@ public class EnemyMovement : MonoBehaviour
         UpdateMovementDirection();
         HandleJumping();
         AdjustPhysicsMaterial();
-        
+
         if (stateMachine.CurrentState == EnemyAIStateMachine.AIState.Patrolling)
         {
             Patrol();
@@ -66,7 +67,7 @@ public class EnemyMovement : MonoBehaviour
     private void UpdateMovementDirection()
     {
         movementDirection = Vector2.zero;
-        
+
         if (stateMachine.CurrentState == EnemyAIStateMachine.AIState.Chasing)
         {
             if (pathfinding.CurrentPath == null || pathfinding.CurrentPath.Count == 0) return;
@@ -86,7 +87,7 @@ public class EnemyMovement : MonoBehaviour
             if (patrolPoints.Count == 0) return;
 
             Vector2 currentWaypoint = patrolPoints[currentPatrolIndex].position;
-            
+
             if (pathfinding.CurrentPath != null && pathfinding.CurrentPath.Count > 0)
             {
                 currentWaypoint = pathfinding.CurrentPath[targetPathIndex];
@@ -116,8 +117,7 @@ public class EnemyMovement : MonoBehaviour
                     }
                 }
             }
-        }
-        
+        }        
         HandleFlipping(movementDirection);
     }
 
@@ -140,8 +140,8 @@ public class EnemyMovement : MonoBehaviour
 
     private bool CanJump()
     {
-        return detection.IsGrounded && 
-               Time.time >= nextJumpTime && 
+        return detection.IsGrounded &&
+               Time.time >= nextJumpTime &&
                (detection.CheckValidJump() || detection.CheckWallForward() || detection.InJumpZone);
     }
 
@@ -149,7 +149,7 @@ public class EnemyMovement : MonoBehaviour
     {
         Vector2 jumpDirection = (detection.PlayerPosition - transform.position).normalized;
         float horizontalForce = Mathf.Clamp(Mathf.Abs(jumpDirection.x), 0.5f, 3f);
-        
+
         rb.AddForce(new Vector2(
             jumpDirection.x * horizontalForce * jumpForwardForce,
             verticalJumpForce
@@ -165,10 +165,7 @@ public class EnemyMovement : MonoBehaviour
     {
         if ((direction.x > 0 && !isFacingRight) || (direction.x < 0 && isFacingRight))
         {
-            isFacingRight = !isFacingRight;
-            Vector3 scale = transform.localScale;
-            scale.x *= -1;
-            transform.localScale = scale;
+            SpriteUtils.FlipSprite(transform, ref isFacingRight);
         }
     }
 

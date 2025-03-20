@@ -96,10 +96,10 @@ namespace Core.Player
         private IEnumerator RespawnRoutine()
         {
             yield return new WaitForSeconds(respawnDelay);
-            RandomRespawn();
+            Respawn();
         }
 
-        private void RandomRespawn()
+        private void Respawn()
         {
             if (isGameOver) return;
             

@@ -2,7 +2,8 @@ using UnityEngine;
 using Player.Movement;
 using Core.Player.Movement;
 using Core.Combat;
-using Player.Input; // <--- Added this using directive
+using Player.Input;
+using Core.Utils;
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(MovementStateMachine))]
@@ -25,10 +26,10 @@ public class PatchyMovement : MonoBehaviour, IMoveable
     private Rigidbody2D rb;
     private PlayerInputHandler inputHandler;
     private CombatSystem combatSystem;
-    private MovementStateMachine stateMachine; // Added
+    private MovementStateMachine stateMachine;
 
     private bool IsAgainstWall;
-    private bool IsGrounded;
+    public bool IsGrounded;
     private float LastMoveDirection;
 
     private float MoveSpeed => moveConfig.MoveSpeed;
@@ -54,7 +55,7 @@ public class PatchyMovement : MonoBehaviour, IMoveable
 
         rb = GetComponent<Rigidbody2D>();
         combatSystem = GetComponent<CombatSystem>();
-        stateMachine = GetComponent<MovementStateMachine>(); // Added
+        stateMachine = GetComponent<MovementStateMachine>();
 
         InitializeBehaviors();
     }
@@ -157,11 +158,7 @@ public class PatchyMovement : MonoBehaviour, IMoveable
         if (dashBehavior.IsDashing && stateMachine.CurrentState != MovementStateMachine.MovementState.Dashing)
         {
             stateMachine.ChangeState(MovementStateMachine.MovementState.Dashing);
-        }
-        else if (!dashBehavior.IsDashing && stateMachine.CurrentState == MovementStateMachine.MovementState.Dashing)
-        {
-            UpdateMovementState();
-        }
+        }        
     }
 
     private void UpdateSprintState()
@@ -172,22 +169,18 @@ public class PatchyMovement : MonoBehaviour, IMoveable
         if (inputHandler.SprintValue > 0 && stateMachine.CurrentState != MovementStateMachine.MovementState.Sprinting)
         {
             stateMachine.ChangeState(MovementStateMachine.MovementState.Sprinting);
-        }
-        else if (inputHandler.SprintValue == 0 && stateMachine.CurrentState == MovementStateMachine.MovementState.Sprinting)
-        {
-            UpdateMovementState();
-        }
+        }        
     }
 
     private void HandleSpriteFlip()
     {
         if (horizontalInput > 0 && !facingRight)
         {
-            FlipSprite();
+            SpriteUtils.FlipSprite(transform, ref facingRight);
         }
         else if (horizontalInput < 0 && facingRight)
         {
-            FlipSprite();
+            SpriteUtils.FlipSprite(transform, ref facingRight);
         }
     }
 
@@ -208,7 +201,7 @@ public class PatchyMovement : MonoBehaviour, IMoveable
 
         rb.linearVelocity = targetVelocity;
 
-        UpdateMovementState();
+        //No need to call UpdateMovementState here
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
@@ -225,10 +218,6 @@ public class PatchyMovement : MonoBehaviour, IMoveable
             if (((1 << collision.gameObject.layer) & groundLayer) != 0 && angle < GroundCollisionAngleThreshold)
             {
                 IsGrounded = true;
-                if (stateMachine.CurrentState == MovementStateMachine.MovementState.Jumping)
-                {
-                    UpdateMovementState();
-                }
             }
         }
     }
@@ -244,14 +233,6 @@ public class PatchyMovement : MonoBehaviour, IMoveable
         {
             IsGrounded = false;
         }
-    }
-
-    private void FlipSprite()
-    {
-        facingRight = !facingRight;
-        Vector3 localScale = transform.localScale;
-        localScale.x *= -1f;
-        transform.localScale = localScale;
     }
 
     private void HandleAttackState(bool isAttacking)
@@ -286,22 +267,6 @@ public class PatchyMovement : MonoBehaviour, IMoveable
             inputHandler.OnMoveInputChanged -= HandleMoveInput;
             inputHandler.OnJumpInputChanged -= HandleJumpInput;
             inputHandler.OnSprintInputChanged -= HandleSprintInput;
-        }
-    }
-
-    private void UpdateMovementState()
-    {
-        if (!IsGrounded)
-        {
-            stateMachine.ChangeState(MovementStateMachine.MovementState.Jumping);
-        }
-        else if (horizontalInput != 0)
-        {
-            stateMachine.ChangeState(MovementStateMachine.MovementState.Walking);
-        }
-        else
-        {
-            stateMachine.ChangeState(MovementStateMachine.MovementState.Idle);
         }
     }
 }

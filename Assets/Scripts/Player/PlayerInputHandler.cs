@@ -14,8 +14,7 @@ namespace Player.Input
             {
                 if (instance == null)
                 {
-                    //instance = FindObjectOfType<PlayerInputHandler>(); // Original line
-                    instance = FindAnyObjectByType<PlayerInputHandler>(); // Modified line
+                    instance = FindAnyObjectByType<PlayerInputHandler>();
                     if (instance == null)
                     {
                         Debug.LogError("No PlayerInputHandler found in scene!");
@@ -60,7 +59,21 @@ namespace Player.Input
 
         private void InitializeInputActions()
         {
+            if (playerControls == null)
+            {
+                Debug.LogError("Player Controls asset is not assigned!");
+                enabled = false; // Disable the script if the asset is missing
+                return;
+            }
+
             actionMap = playerControls.FindActionMap(actionMapName);
+
+            if (actionMap == null)
+            {
+                Debug.LogError($"Action map '{actionMapName}' not found in Player Controls asset!");
+                enabled = false; // Disable the script if the action map is missing
+                return;
+            }
 
             moveAction = actionMap.FindAction("Move");
             jumpAction = actionMap.FindAction("Jump");
@@ -115,7 +128,10 @@ namespace Player.Input
 
         private void OnDisable()
         {
-            DisableInputActions();
+            if (actionMap != null)
+            {
+                DisableInputActions();
+            }
         }
 
         private void EnableInputActions()
@@ -125,7 +141,10 @@ namespace Player.Input
 
         private void DisableInputActions()
         {
-            actionMap.Disable();
+            if (actionMap != null)
+            {
+                actionMap.Disable();
+            }
         }
     }
 }

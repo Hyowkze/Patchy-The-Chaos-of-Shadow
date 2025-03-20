@@ -1,6 +1,8 @@
 using UnityEngine;
 using Core.Interfaces;
 using Player.Input;
+using Core.Player.Movement;
+using System;
 
 namespace Core.Player.Movement.States
 {
@@ -10,23 +12,25 @@ namespace Core.Player.Movement.States
         private readonly Rigidbody2D rb;
         private readonly MovementConfig config;
         private PlayerInputHandler inputHandler;
-        private readonly MovementStateMachine stateMachine; // Added
+        private MovementStateMachine stateMachine;
 
-        public SprintingState(PatchyMovement movement, Rigidbody2D rb, MovementConfig config)
+        public SprintingState(PatchyMovement movement, Rigidbody2D rb, MovementConfig config, MovementStateMachine stateMachine)
         {
             this.movement = movement;
             this.rb = rb;
             this.config = config;
             inputHandler = PlayerInputHandler.Instance;
-            this.stateMachine = movement.GetComponent<MovementStateMachine>(); // Added
+            this.stateMachine = stateMachine;
         }
 
         public void Enter()
         {
-            movement.GetComponent<Animator>()?.SetInteger("State", 4);
         }
 
-        public void Update() { }
+        public void Update()
+        {
+            HandleInput(inputHandler.MoveInput);
+        }
 
         public void FixedUpdate()
         {
@@ -45,12 +49,20 @@ namespace Core.Player.Movement.States
         {
             if (inputHandler.MoveInput.x == 0)
             {
-                stateMachine.ChangeState(MovementStateMachine.MovementState.Idle); 
+                RequestStateChange(MovementStateMachine.MovementState.Idle);
             }
             else if (inputHandler.SprintValue == 0)
             {
-                stateMachine.ChangeState(MovementStateMachine.MovementState.Walking); 
+                RequestStateChange(MovementStateMachine.MovementState.Walking);
             }
+        }
+
+        public event Action<MovementStateMachine.MovementState> OnStateChangeRequested;
+
+        public void RequestStateChange(MovementStateMachine.MovementState newState)
+        {
+            // Invoke the event here!
+            OnStateChangeRequested?.Invoke(newState);
         }
     }
 }

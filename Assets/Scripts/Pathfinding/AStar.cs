@@ -1,19 +1,23 @@
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 namespace Core.Pathfinding
 {
     public static class AStar
     {
-        public static List<Vector3> FindPath(PathNode startNode, PathNode targetNode, PathNode[,] grid, Queue<PathNode> openSet, HashSet<PathNode> closedSet)
+        public static List<Vector3> FindPath(PathNode startNode, PathNode targetNode)
         {
-            openSet.Enqueue(startNode);
+            SortedSet<PathNode> openSet = new SortedSet<PathNode>();
+            HashSet<PathNode> closedSet = new HashSet<PathNode>();
+            openSet.Add(startNode);
             startNode.GCost = 0;
             startNode.HCost = GetDistance(startNode, targetNode);
 
             while (openSet.Count > 0)
             {
-                PathNode currentNode = openSet.Dequeue();
+                PathNode currentNode = openSet.Min;
+                openSet.Remove(currentNode);
                 closedSet.Add(currentNode);
 
                 if (currentNode == targetNode)
@@ -21,7 +25,7 @@ namespace Core.Pathfinding
                     return RetracePath(startNode, targetNode);
                 }
 
-                foreach (PathNode neighbor in GetNeighbors(currentNode, grid))
+                foreach (PathNode neighbor in GridSystem.Instance.GetNeighbours(currentNode)) // Use GridSystem.Instance
                 {
                     if (!neighbor.Walkable || closedSet.Contains(neighbor))
                     {
@@ -37,7 +41,7 @@ namespace Core.Pathfinding
 
                         if (!openSet.Contains(neighbor))
                         {
-                            openSet.Enqueue(neighbor);
+                            openSet.Add(neighbor);
                         }
                     }
                 }
@@ -59,31 +63,6 @@ namespace Core.Pathfinding
             path.Add(startNode.WorldPosition);
             path.Reverse();
             return path;
-        }
-
-        private static List<PathNode> GetNeighbors(PathNode node, PathNode[,] grid)
-        {
-            List<PathNode> neighbors = new List<PathNode>();
-            int gridSizeX = grid.GetLength(0);
-            int gridSizeY = grid.GetLength(1);
-
-            for (int x = -1; x <= 1; x++)
-            {
-                for (int y = -1; y <= 1; y++)
-                {
-                    if (x == 0 && y == 0) continue;
-
-                    int checkX = node.GridX + x;
-                    int checkY = node.GridY + y;
-
-                    if (checkX >= 0 && checkX < gridSizeX && checkY >= 0 && checkY < gridSizeY)
-                    {
-                        neighbors.Add(grid[checkX, checkY]);
-                    }
-                }
-            }
-
-            return neighbors;
         }
 
         private static int GetDistance(PathNode nodeA, PathNode nodeB)

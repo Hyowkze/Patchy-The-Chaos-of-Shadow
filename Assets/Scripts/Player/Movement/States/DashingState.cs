@@ -1,5 +1,7 @@
 using UnityEngine;
 using Core.Interfaces;
+using Core.Player.Movement;
+using System;
 
 namespace Core.Player.Movement.States
 {
@@ -9,29 +11,29 @@ namespace Core.Player.Movement.States
         private readonly Rigidbody2D rb;
         private readonly MovementConfig config;
         private float dashTimeLeft;
-        private readonly MovementStateMachine stateMachine; // Added
+        private MovementStateMachine stateMachine;
 
-        public DashingState(PatchyMovement movement, Rigidbody2D rb, MovementConfig config, MovementStateMachine stateMachine) // Modified
+        public DashingState(PatchyMovement movement, Rigidbody2D rb, MovementConfig config, MovementStateMachine stateMachine)
         {
             this.movement = movement;
             this.rb = rb;
             this.config = config;
-            this.stateMachine = stateMachine; // Added
+            this.stateMachine = stateMachine;
         }
 
         public void Enter()
         {
-            movement.GetComponent<Animator>()?.SetInteger("State", 3);
             dashTimeLeft = config.DashSettings.DashDuration;
             ApplyDashForce();
         }
 
         public void Update()
         {
+            HandleInput(Vector2.zero);
             dashTimeLeft -= Time.deltaTime;
             if (dashTimeLeft <= 0)
             {
-                stateMachine.ChangeState(MovementStateMachine.MovementState.Idle); // Modified
+                RequestStateChange(MovementStateMachine.MovementState.Idle);
             }
         }
 
@@ -44,9 +46,16 @@ namespace Core.Player.Movement.States
 
         public void HandleInput(Vector2 input) { }
 
-        private void ApplyDashForce()
+        public event Action<MovementStateMachine.MovementState> OnStateChangeRequested;
+
+        public void RequestStateChange(MovementStateMachine.MovementState newState)
         {
-            // Assuming you have a way to get the facing direction from PatchyMovement
+            // Invoke the event here!
+            OnStateChangeRequested?.Invoke(newState);
+        }
+
+        private void ApplyDashForce()
+        {            
             Vector2 dashDirection = movement.transform.localScale.x > 0 ? Vector2.right : Vector2.left;
             rb.linearVelocity = dashDirection * config.DashSettings.DashSpeed;
         }

@@ -1,9 +1,12 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "PhysicsConfig", menuName = "Config/PhysicsConfig")]
-public class PhysicsConfig : ScriptableObject
+namespace Core.Player.Movement
 {
-    [Header("Collision Detection")]
-    public float WallCollisionAngleThreshold = 45f;
-    public float GroundCollisionAngleThreshold = 45f;
+    [CreateAssetMenu(fileName = "PhysicsConfig", menuName = "Configs/Physics Config", order = 2)]
+    public class PhysicsConfig : ScriptableObject
+    {
+        [Header("Collision Settings")]
+        [Range(0f, 90f)] public float WallCollisionAngleThreshold = 45f;
+        [Range(0f, 90f)] public float GroundCollisionAngleThreshold = 45f;
+    }
 }

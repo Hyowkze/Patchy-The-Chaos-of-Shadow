@@ -1,50 +1,69 @@
 using UnityEngine;
 using Core.Interfaces;
 using Player.Input;
+using Core.Player.Movement;
+using System;
 
 namespace Core.Player.Movement.States
 {
     public class JumpingState : IMovementState
     {
         private readonly PatchyMovement movement;
-        private readonly Rigidbody2D rb; // Added
-        private readonly MovementConfig config; // Added
-        private PlayerInputHandler inputHandler; // Added
+        private readonly Rigidbody2D rb;
+        private readonly MovementConfig config;
+        private PlayerInputHandler inputHandler;
+        private MovementStateMachine stateMachine;
 
-        public JumpingState(PatchyMovement movement, Rigidbody2D rb, MovementConfig config) // Modified
+        public JumpingState(PatchyMovement movement, Rigidbody2D rb, MovementConfig config, MovementStateMachine stateMachine)
         {
             this.movement = movement;
-            this.rb = rb; // Added
-            this.config = config; // Added
-            inputHandler = PlayerInputHandler.Instance; // Added
+            this.rb = rb;
+            this.config = config;
+            inputHandler = PlayerInputHandler.Instance;
+            this.stateMachine = stateMachine;
         }
 
         public void Enter()
         {
-            movement.GetComponent<Animator>()?.SetInteger("State", 2);
+            rb.AddForce(Vector2.up * config.JumpForce, ForceMode2D.Impulse);
         }
 
-        public void Update() { }
+        public void Update()
+        {
+            HandleInput(inputHandler.MoveInput);
+        }
 
         public void FixedUpdate()
         {
-            Vector2 currentVelocity = rb.linearVelocity;
-            float targetVelocity = inputHandler.MoveInput.x * config.MoveSpeed;
-
-            rb.linearVelocity = new Vector2(
-                Mathf.Lerp(currentVelocity.x, targetVelocity, config.AirControl * Time.fixedDeltaTime),
-                currentVelocity.y
-            );
+            float targetVelocityX = inputHandler.MoveInput.x * config.MoveSpeed;
+            float newVelocityX = Mathf.Lerp(rb.linearVelocity.x, targetVelocityX, config.AirControl * Time.fixedDeltaTime);
+            rb.linearVelocity = new Vector2(newVelocityX, rb.linearVelocity.y);
         }
 
         public void Exit() { }
 
         public void HandleInput(Vector2 input)
         {
-            if (inputHandler.MoveInput.x == 0)
+            if (movement.IsGrounded)
             {
-                //movement.ChangeState(MovementStateMachine.MovementState.Idle);
+                if (inputHandler.MoveInput.x == 0)
+                {
+                    RequestStateChange(MovementStateMachine.MovementState.Idle);
+                }
+                else
+                {
+                    RequestStateChange(MovementStateMachine.MovementState.Walking);
+                }
             }
+        }
+
+        public event Action<MovementStateMachine.MovementState> OnStateChangeRequested;
+
+        public void RequestStateChange(MovementStateMachine.MovementState newState)
+        {
+            // Invoke the event here!
+            OnStateChangeRequested?.Invoke(newState);
+            //stateMachine.ChangeState(newState); // Remove this line
         }
     }
 }
