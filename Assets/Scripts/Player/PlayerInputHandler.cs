@@ -1,113 +1,94 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System;
 
-public class PlayerInputHandler : MonoBehaviour
+namespace Player.Input
 {
-    [Header("Input Action Asset")]
-    [SerializeField] private InputActionAsset playerControls;
-
-    [Header("Action Map and Action Names")]
-    [SerializeField] private string actionMapName = "2DPlayer";
-    [SerializeField] private string moveActionName = "Move";
-    [SerializeField] private string jumpActionName = "Jump";
-    [SerializeField] private string sprintActionName = "Sprint";
-    [SerializeField] private string dashActionName = "Dash";
-
-    private InputAction moveAction;
-    private InputAction jumpAction;
-    private InputAction sprintAction;
-    private InputAction dashAction;
-
-    public Vector2 MoveInput { get; private set; }
-    internal bool JumpTriggered { get; set; }
-    public float SprintValue { get; private set; }
-    internal bool DashTriggered { get; set; }
-
-    public static PlayerInputHandler Instance { get; private set; }
-
-    private void Awake()
+    public class PlayerInputHandler : MonoBehaviour
     {
-        // Singleton pattern implementation.
-        if (Instance == null)
+        public static PlayerInputHandler Instance { get; private set; }
+
+        public event Action<Vector2> OnMoveInputChanged;
+        public event Action OnJumpInputChanged;
+        public event Action OnSprintInputChanged;
+        public event Action OnDashInputChanged;
+        public event Action OnAttackInputChanged;
+        public event Action OnSpecialPowerInputChanged; // Renamed from OnSpecialInputChanged
+
+        public Vector2 MoveInput { get; set; }
+        public float SprintValue { get; private set; } // Change to private set
+
+        private PlayerInputActions playerInputActions; // Now it will be found
+
+        private void Awake()
         {
-            Instance = this;
-            //Check if the gameobject is a root object.
-            if (transform.parent != null)
+            if (Instance != null && Instance != this)
             {
-                //If its not a root gameobject, we detach it.
-                transform.SetParent(null);
+                Destroy(this);
+                return;
             }
+            Instance = this;
             DontDestroyOnLoad(gameObject);
+
+            playerInputActions = new PlayerInputActions(); // Now it will be found
+            playerInputActions.Player.Enable();
+
+            playerInputActions.Player.Move.performed += OnMove;
+            playerInputActions.Player.Move.canceled += OnMove;
+            playerInputActions.Player.Jump.performed += OnJump;
+            playerInputActions.Player.Sprint.performed += OnSprint;
+            playerInputActions.Player.Dash.performed += OnDash;
+            playerInputActions.Player.Attack.performed += OnAttack;
+            playerInputActions.Player.SpecialPower.performed += OnSpecialPower; // Updated name
         }
-        else
+
+        private void OnDestroy()
         {
-            Destroy(gameObject);
-            return; // Exit, so that no other code executes.
+            playerInputActions.Player.Move.performed -= OnMove;
+            playerInputActions.Player.Move.canceled -= OnMove;
+            playerInputActions.Player.Jump.performed -= OnJump;
+            playerInputActions.Player.Sprint.performed -= OnSprint;
+            playerInputActions.Player.Dash.performed -= OnDash;
+            playerInputActions.Player.Attack.performed -= OnAttack;
+            playerInputActions.Player.SpecialPower.performed -= OnSpecialPower;
         }
 
-        // Get the action map
-        InputActionMap actionMap = playerControls.FindActionMap(actionMapName, true);
+        private void OnMove(InputAction.CallbackContext context)
+        {
+            MoveInput = context.ReadValue<Vector2>();
+            OnMoveInputChanged?.Invoke(MoveInput);
+        }
 
-        // Find each action and assign it
-        moveAction = actionMap.FindAction(moveActionName, true);
-        jumpAction = actionMap.FindAction(jumpActionName, true);
-        sprintAction = actionMap.FindAction(sprintActionName, true);
-        dashAction = actionMap.FindAction(dashActionName, true);
+        private void OnJump(InputAction.CallbackContext context)
+        {
+            OnJumpInputChanged?.Invoke();
+        }
 
-        RegisterInputActions();
-    }
+        private void OnSprint(InputAction.CallbackContext context)
+        {
+            SprintValue = SprintValue == 0 ? 1 : 0; // Toggle sprint value
+            OnSprintInputChanged?.Invoke();
+        }
 
-    private void RegisterInputActions()
-    {
-        // Subscribe to the "performed" and "canceled" events of each input action
-        moveAction.performed += ctx => MoveInput = ctx.ReadValue<Vector2>();
-        moveAction.canceled += _ => MoveInput = Vector2.zero; //Using _ to replace ctx
+        private void OnDash(InputAction.CallbackContext context)
+        {
+            OnDashInputChanged?.Invoke();
+        }
 
-        jumpAction.performed += OnJumpPerformed;
-        jumpAction.canceled += OnJumpCanceled;
+        private void OnAttack(InputAction.CallbackContext context)
+        {
+            OnAttackInputChanged?.Invoke();
+        }
 
-        sprintAction.performed += ctx => SprintValue = ctx.ReadValue<float>();
-        sprintAction.canceled += _ => SprintValue = 0f; //Using _ to replace ctx
+        private void OnSpecialPower(InputAction.CallbackContext context) // Renamed from OnSpecial
+        {
+            OnSpecialPowerInputChanged?.Invoke();
+        }
 
-        dashAction.performed += _ => DashTriggered = true;
-        dashAction.canceled += _ => DashTriggered = false;
-    }
-
-    private void OnJumpPerformed(InputAction.CallbackContext ctx)
-    {
-        JumpTriggered = true;
-        Debug.Log("Jump Input Performed");
-    }
-
-    private void OnJumpCanceled(InputAction.CallbackContext ctx)
-    {
-        JumpTriggered = false;
-        Debug.Log("Jump Input Canceled");
-    }
-
-    private void OnEnable()
-    {
-        EnableInputActions();
-    }
-
-    private void OnDisable()
-    {
-        DisableInputActions();
-    }
-
-    private void EnableInputActions()
-    {
-        moveAction.Enable();
-        jumpAction.Enable();
-        sprintAction.Enable();
-        dashAction.Enable();
-    }
-
-    private void DisableInputActions()
-    {
-        moveAction.Disable();
-        jumpAction.Disable();
-        sprintAction.Disable();
-        dashAction.Disable();
+        public bool IsActionTriggered(string actionName)
+        {
+            InputAction action = playerInputActions.FindAction(actionName);
+            return action != null && action.triggered;
+        }
     }
 }
