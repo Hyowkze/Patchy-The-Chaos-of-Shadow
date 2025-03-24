@@ -13,12 +13,11 @@ namespace Core.Player
         [SerializeField] private int currentExperience = 0;
         [SerializeField] private int experiencePenalty = 50;
         [SerializeField] private float experiencePenaltyPercentage = 0.1f;
+        [SerializeField] private int minExperienceForRespawn = 1; // Minimum experience required for respawn
 
-        [Header("Respawn Settings")]
-        [SerializeField] private float respawnDelay = 2f;
+        [Header("Invulnerability Settings")]
+        [SerializeField] private float invulnerabilityDuration = 2f;
 
-        [Header("Game Over Settings")]
-        [SerializeField] private float gameOverDelay = 1f; // Now used
         private bool isGameOver = false;
 
         private Vector3 lastCheckpoint;
@@ -61,14 +60,14 @@ namespace Core.Player
 
             int experienceLoss = CalculateExperienceLoss();
             UpdateExperience(experienceLoss);
-            
-            if (currentExperience <= 0)
+
+            if (currentExperience < minExperienceForRespawn)
             {
                 GameOver();
                 return;
             }
 
-            StartCoroutine(RespawnRoutine());
+            Respawn();
         }
 
         private int CalculateExperienceLoss()
@@ -90,22 +89,23 @@ namespace Core.Player
             isGameOver = true;
             currentExperience = 0;
             OnExperienceChanged?.Invoke(currentExperience);
-            GameManager.Instance.TriggerGameOver(gameOverDelay); // Pass the delay
-        }
-
-        private IEnumerator RespawnRoutine()
-        {
-            yield return new WaitForSeconds(respawnDelay);
-            Respawn();
         }
 
         private void Respawn()
         {
             if (isGameOver) return;
-            
-            Vector3 closestPosition = GridManager.Instance.GetClosestValidPosition(transform.position);
-            transform.position = closestPosition;
+
+            //Respawn in the same position
+            transform.position = transform.position;
             gameObject.SetActive(true);
+            StartCoroutine(InvulnerabilityRoutine()); // Start invulnerability
+        }
+
+        private IEnumerator InvulnerabilityRoutine()
+        {
+            healthComponent.SetInvulnerable(true); // Set invulnerability in Health component
+            yield return new WaitForSeconds(invulnerabilityDuration);
+            healthComponent.SetInvulnerable(false); // Remove invulnerability in Health component
         }
 
         public void AddExperience(int amount)

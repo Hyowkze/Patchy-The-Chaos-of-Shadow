@@ -1,6 +1,7 @@
 using UnityEngine;
 using Core.Player;
 using Core.Utils;
+using Core.Managers;
 
 namespace Core.Characters
 {
@@ -32,6 +33,7 @@ namespace Core.Characters
             if (experience <= 0)
             {
                 playerStats.HandleDeath();
+                GameManager.Instance.GameOver(); // Call GameOver directly
             }
         }
     }

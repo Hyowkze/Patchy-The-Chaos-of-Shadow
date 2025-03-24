@@ -10,7 +10,7 @@ using Core.Utils;
 public class PatchyMovement : ComponentRequester
 {
     [Header("Configuration")]
-    [SerializeField] private MovementConfig moveConfig;
+    [SerializeField] public MovementConfig moveConfig;
     [SerializeField] private PhysicsConfig physicsConfig;
     [SerializeField] private CombatSystem combatSystem;
 
@@ -31,17 +31,7 @@ public class PatchyMovement : ComponentRequester
         stateMachine = RequestComponent<MovementStateMachine>();
     }
 
-    protected override void ValidateComponents()
-    {
-        if (moveConfig == null || physicsConfig == null || stateMachine == null)
-        {
-            Debug.LogError($"Missing required configuration on {gameObject.name}");
-            enabled = false;
-            return;
-        }
-    }
-
-    private void Start()
+    protected override void Start()
     {
         
     }
@@ -60,6 +50,13 @@ public class PatchyMovement : ComponentRequester
         PlayerInputHandler.Instance.OnJumpInputChanged -= HandleJumpInput;
         PlayerInputHandler.Instance.OnSprintInputChanged -= HandleSprintInput;
         PlayerInputHandler.Instance.OnDashInputChanged -= HandleDashInput;
+    }
+
+    protected override void ValidateComponents()
+    {
+        // Validate required components
+        RequestComponent<MovementStateMachine>();
+        RequestComponent<Rigidbody2D>();
     }
 
     private void Update()
@@ -85,7 +82,6 @@ public class PatchyMovement : ComponentRequester
 
     private void HandleSprintInput()
     {
-        //PlayerInputHandler.Instance.SprintValue = PlayerInputHandler.Instance.SprintValue == 0 ? 1 : 0; // Remove this line
     }
 
     private void HandleDashInput()

@@ -1,5 +1,6 @@
 using UnityEngine;
 using TMPro;
+using Core.Managers;
 
 public class Timer : MonoBehaviour
 {
@@ -42,7 +43,7 @@ public class Timer : MonoBehaviour
     private void TimerEnded()
     {
         Debug.Log("¡Tiempo agotado!");
-        // Aquí puedes agregar lógica como terminar el nivel o mostrar un mensaje
+        GameManager.Instance.GameOver();
     }
 
     public void AddTime(float extraTime)

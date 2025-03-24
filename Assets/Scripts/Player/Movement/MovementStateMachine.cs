@@ -24,25 +24,19 @@ namespace Player.Movement
         private MovementStateFactory stateFactory;
         private CombatSystem combatSystem;
         private IMovementState currentState;
+        private PatchyMovement patchyMovement;
 
         protected override void Awake()
         {
             base.Awake();
             combatSystem = RequestComponent<CombatSystem>();
+            patchyMovement = RequestComponent<PatchyMovement>();
+            // Create the state factory here, after components are requested
+            stateFactory = new MovementStateFactory(patchyMovement, patchyMovement.moveConfig, this, combatSystem);
         }
 
-        protected override void ValidateComponents()
+        protected override void Start()
         {
-            if (combatSystem == null)
-            {
-                Debug.LogError($"Missing required components on {gameObject.name}");
-                enabled = false;
-            }
-        }
-
-        private void Start()
-        {
-            stateFactory = new MovementStateFactory(GetComponent<PatchyMovement>(), GetComponent<MovementConfig>(), this, combatSystem);
             ChangeState(MovementState.Idle);
         }
 
@@ -83,7 +77,10 @@ namespace Player.Movement
 
         public void HandleInput()
         {
-            currentState.HandleInput();
+            if (currentState != null)
+            {
+                currentState.HandleInput();
+            }
         }
     }
 }

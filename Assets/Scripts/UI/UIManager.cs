@@ -5,7 +5,7 @@ using Core.Events;
 using Core.Player;
 using Core.Characters;
 using Player.Movement;
-using Core.Managers; // <--- Added this using directive
+using Core.Managers;
 
 namespace Core.UI
 {
@@ -57,11 +57,7 @@ namespace Core.UI
         {
             playerHealth.OnHealthValueChanged += UpdateHealthUI;            
             playerReference.OnExperienceChanged += UpdateExperienceUI;
-
-            if (GameManager.Instance != null) 
-            {
-                GameManager.Instance.OnGameOver += ShowGameOver;
-            }
+            GameManager.Instance.OnGameOver += ShowGameOver; // Subscribe directly
         }
 
         private void InitializeUI()
@@ -109,21 +105,9 @@ namespace Core.UI
 
         private void OnDestroy()
         {
-            if (GameManager.Instance != null)
-            {
-                GameManager.Instance.OnGameOver -= ShowGameOver;
-            }
-            if (playerHealth != null)
-            {
-                playerHealth.OnHealthValueChanged -= UpdateHealthUI;
-            }
-            if (playerMovement != null)
-            {                
-            }
-            if (playerReference != null)
-            {
-                playerReference.OnExperienceChanged -= UpdateExperienceUI;
-            }
+            GameManager.Instance.OnGameOver -= ShowGameOver;
+            playerHealth.OnHealthValueChanged -= UpdateHealthUI;
+            playerReference.OnExperienceChanged -= UpdateExperienceUI;
         }
     }
 }

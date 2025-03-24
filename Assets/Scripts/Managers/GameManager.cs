@@ -2,8 +2,8 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Collections;
 using System.Collections.Generic;
-using Core.Managers;
-using Core.Player; // <--- Added this using directive
+using Core.Player; 
+using System;
 
 namespace Core.Managers
 {
@@ -13,12 +13,12 @@ namespace Core.Managers
         private readonly HashSet<string> defeatedEnemyIds = new HashSet<string>();
         private bool isGameOver;
 
-        public event System.Action OnGameOver;
-        
+        public event Action OnGameOver; // Use System.Action
+
         // Thread-safe singleton
         private static readonly object _lock = new object();
         private static GameManager instance;
-        
+
         public static GameManager Instance
         {
             get
@@ -49,15 +49,17 @@ namespace Core.Managers
 
         private void Awake()
         {
-            if (instance == null)
+            lock (_lock)
             {
+                if (instance != null && instance != this)
+                {
+                    Destroy(gameObject);
+                    return;
+                }
+
                 instance = this;
                 DontDestroyOnLoad(gameObject);
                 Initialize();
-            }
-            else
-            {
-                Destroy(gameObject);
             }
         }
 
@@ -89,29 +91,34 @@ namespace Core.Managers
             defeatedEnemyIds.Clear();
         }
 
-        public void TriggerGameOver(float delay = 2f)
+        public void GameOver() // Changed from TriggerGameOver
         {
             if (isGameOver) return;
-            
+
             isGameOver = true;
             OnGameOver?.Invoke();
-            StartCoroutine(HandleGameOver(delay));
+            StartCoroutine(HandleGameOver()); // Removed delay parameter
         }
 
-        private IEnumerator HandleGameOver(float delay)
+        private IEnumerator HandleGameOver() // Removed delay parameter
         {
-            yield return new WaitForSeconds(delay);
+            yield return new WaitForSeconds(2f); // Fixed delay
             // Aquí puedes cargar la escena inicial o reiniciar el nivel
             SceneManager.LoadScene(
                 SceneManager.GetActiveScene().buildIndex
             );
+            isGameOver = false; // Reset isGameOver flag
         }
 
         private void OnDestroy()
         {
-            if (instance == this)
+            lock (_lock)
             {
-                applicationIsQuitting = true;
+                if (instance == this)
+                {
+                    applicationIsQuitting = true;
+                    instance = null; // Clear the instance
+                }
             }
         }
     }

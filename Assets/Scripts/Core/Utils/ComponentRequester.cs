@@ -9,7 +9,23 @@ namespace Core.Utils
             ValidateComponents();
         }
 
-        protected abstract void ValidateComponents();
+        protected virtual void Start()
+        {
+            SubscribeToEvents();
+        }
+
+        protected virtual void OnDestroy()
+        {
+            UnsubscribeFromEvents();
+        }
+
+        protected virtual void ValidateComponents()
+        {
+            // Default implementation: does nothing
+        }
+
+        protected virtual void SubscribeToEvents() { }
+        protected virtual void UnsubscribeFromEvents() { }
 
         protected T RequestComponent<T>() where T : Component
         {
@@ -21,23 +37,5 @@ namespace Core.Utils
             }
             return component;
         }
-
-        protected virtual void OnEnable()
-        {
-            SubscribeToEvents();
-        }
-
-        protected virtual void OnDisable()
-        {
-            UnsubscribeFromEvents();
-        }
-
-        protected virtual void OnDestroy()
-        {
-            UnsubscribeFromEvents();
-        }
-
-        protected virtual void SubscribeToEvents() { }
-        protected virtual void UnsubscribeFromEvents() { }
     }
 }
