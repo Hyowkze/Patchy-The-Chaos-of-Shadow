@@ -110,6 +110,13 @@ public class PatchyMovement : MonoBehaviour, IMoveable
         RequestComponent<Rigidbody2D>();
     }
 
+    protected override void ValidateComponents()
+    {
+        // Validate required components
+        RequestComponent<MovementStateMachine>();
+        RequestComponent<Rigidbody2D>();
+    }
+
     private void Update()
     {
         if (!canMove) return;

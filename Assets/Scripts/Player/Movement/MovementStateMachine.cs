@@ -28,12 +28,11 @@ namespace Core.Player.Movement
 
         public MovementState CurrentState { get; private set; }
 
-<<<<<<< Updated upstream
+
         private void Reset()
         {
             movement = GetComponent<PatchyMovement>();
         }
-
         private void Awake()
         {
             if (movement == null)
@@ -88,7 +87,6 @@ namespace Core.Player.Movement
 
         private void UpdateAnimator(MovementState state)
         {
-<<<<<<< Updated upstream
             switch (state)
             {
                 case MovementState.Idle:

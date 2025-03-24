@@ -28,7 +28,6 @@ namespace Core.Enemy.AI
         private EnemyPathfinding enemyPathfinding;
         private EnemyDetection enemyDetection;
         private CombatSystem combatSystem;
-<<<<<<< Updated upstream
         private Health health; // Added
 
         private Health health;
@@ -246,6 +245,35 @@ namespace Core.Enemy.AI
             }
             // Perform attack
             combatSystem.PerformAttack();
+        }
+
+        private void HandleDeath()
+        {
+            // Obtener el componente PlayerStats del jugador
+            GameObject player = GameObject.FindGameObjectWithTag("Player"); // Asegúrate de que tu jugador tenga el tag "Player"
+            if (player != null)
+            {
+                PlayerStats playerStats = player.GetComponent<PlayerStats>();
+                if (playerStats != null)
+                {
+                    // Añadir la experiencia al jugador usando el valor del Scriptable Object
+                    playerStats.AddExperience((int)experienceConfig.ExperienceReward);
+                }
+                else
+                {
+                    Debug.LogError("PlayerStats component not found on the player.");
+                }
+            }
+            else
+            {
+                Debug.LogError("Player not found with tag 'Player'.");
+            }
+            Destroy(gameObject);
+        }
+
+        private void OnDestroy()
+        {
+            health.OnDeath -= HandleDeath;
         }
 
         private void HandleDeath()
