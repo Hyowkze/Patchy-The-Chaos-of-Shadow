@@ -1,24 +1,25 @@
 using UnityEngine;
+using Core.Config;
 
-namespace Core.Pathfinding
+namespace Core.Enemy
 {
     [CreateAssetMenu(fileName = "PathfindingConfig", menuName = "Config/PathfindingConfig")]
-    public class PathfindingConfig : ScriptableObject
+    public class PathfindingConfig : ConfigBase
     {
         [Header("Grid Settings")]
-        [Min(1f)] public Vector2 gridWorldSize = new Vector2(50f, 50f);
-        [Min(0.1f)] public float nodeRadius = 0.5f;
-        
-        [Header("Detection Settings")]
-        public LayerMask unwalkableMask;
-        [Min(0.1f)] public float pathUpdateRate = 0.5f;
+        [SerializeField] private float gridSize = 1f;
+        [SerializeField] private Vector2Int gridDimensions = new Vector2Int(10, 10);
+        [SerializeField] private float nodeRadius = 0.5f;
+        [SerializeField] public LayerMask unwalkableMask; // Keep this line
 
-        private void OnValidate()
+        public float GridSize => gridSize;
+        public Vector2Int GridDimensions => gridDimensions;
+        public float NodeRadius => nodeRadius;
+
+        protected override void ValidateFields()
         {
-            gridWorldSize.x = Mathf.Max(1f, gridWorldSize.x);
-            gridWorldSize.y = Mathf.Max(1f, gridWorldSize.y);
-            nodeRadius = Mathf.Max(0.1f, nodeRadius);
-            pathUpdateRate = Mathf.Max(0.1f, pathUpdateRate);
+            ValidateGreaterThanZero(ref gridSize, nameof(gridSize));
+            ValidateGreaterThanZero(ref nodeRadius, nameof(nodeRadius));
         }
     }
 }

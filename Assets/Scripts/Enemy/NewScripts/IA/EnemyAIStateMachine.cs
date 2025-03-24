@@ -1,7 +1,8 @@
 using UnityEngine;
 using Core.Enemy;
 using Core.Combat;
-using Core.Characters; 
+using Core.Characters;
+using Core.Player;
 
 namespace Core.Enemy.AI
 {
@@ -9,7 +10,7 @@ namespace Core.Enemy.AI
     [RequireComponent(typeof(EnemyPathfinding))]
     [RequireComponent(typeof(EnemyDetection))]
     [RequireComponent(typeof(CombatSystem))]
-    [RequireComponent(typeof(Health))] 
+    [RequireComponent(typeof(Health))]
     public class EnemyAIStateMachine : MonoBehaviour
     {
         public enum AIState
@@ -27,7 +28,8 @@ namespace Core.Enemy.AI
         private EnemyPathfinding enemyPathfinding;
         private EnemyDetection enemyDetection;
         private CombatSystem combatSystem;
-        private Health health; // Added
+        private Health health;
+        private IAttackStrategy currentAttackStrategy;
 
         [Header("Flee Settings")]
         [SerializeField] private float fleeHealthThreshold = 0.3f;
@@ -37,6 +39,9 @@ namespace Core.Enemy.AI
         [Header("Attack Settings")]
         [SerializeField] private float closeAttackRange = 1f;
         [SerializeField] private float midAttackRange = 2f;
+
+        [Header("Experience Settings")]
+        [SerializeField] private EnemyExperienceConfig experienceConfig; // Referencia al Scriptable Object
 
         private void Awake()
         {
@@ -50,7 +55,7 @@ namespace Core.Enemy.AI
             enemyPathfinding = GetComponent<EnemyPathfinding>();
             enemyDetection = GetComponent<EnemyDetection>();
             combatSystem = GetComponent<CombatSystem>();
-            health = GetComponent<Health>(); // Added
+            health = GetComponent<Health>();
         }
 
         private void ValidateComponents()
@@ -61,11 +66,17 @@ namespace Core.Enemy.AI
                 Debug.LogError($"Missing required components on {gameObject.name}");
                 enabled = false;
             }
+            if (experienceConfig == null)
+            {
+                Debug.LogError($"Missing EnemyExperienceConfig on {gameObject.name}");
+                enabled = false;
+            }
         }
 
         private void Start()
         {
-            ChangeState(AIState.Patrolling); // Start in the Patrolling state
+            ChangeState(AIState.Patrolling);
+            health.OnDeath += HandleDeath; // Suscribirse al evento de muerte
         }
 
         private void Update()
@@ -105,11 +116,9 @@ namespace Core.Enemy.AI
             {
                 case AIState.Patrolling:
                     Debug.Log("Entering Patrolling State");
-                    // Initialize patrol behavior
                     break;
                 case AIState.Chasing:
                     Debug.Log("Entering Chasing State");
-                    // Initialize chase behavior
                     break;
                 case AIState.Fleeing:
                     Debug.Log("Entering Fleeing State");
@@ -120,7 +129,6 @@ namespace Core.Enemy.AI
                     break;
                 case AIState.Attacking:
                     Debug.Log("Entering Attacking State");
-                    // Initialize attack behavior
                     break;
             }
         }
@@ -131,29 +139,24 @@ namespace Core.Enemy.AI
             {
                 case AIState.Patrolling:
                     Debug.Log("Exiting Patrolling State");
-                    // Clean up patrol behavior
                     break;
                 case AIState.Chasing:
                     Debug.Log("Exiting Chasing State");
-                    // Clean up chase behavior
                     break;
                 case AIState.Fleeing:
                     Debug.Log("Exiting Fleeing State");
-                    // Clean up flee behavior
                     break;
                 case AIState.PreparingAttack:
                     Debug.Log("Exiting PreparingAttack State");
                     break;
                 case AIState.Attacking:
                     Debug.Log("Exiting Attacking State");
-                    // Clean up attack behavior
                     break;
             }
         }
 
         private void PatrolUpdate()
         {
-            // Check for conditions to switch to other states
             if (enemyDetection.PlayerFound)
             {
                 ChangeState(AIState.Chasing);
@@ -166,7 +169,6 @@ namespace Core.Enemy.AI
 
         private void ChaseUpdate()
         {
-            // Check for conditions to switch to other states
             if (!enemyDetection.PlayerFound)
             {
                 ChangeState(AIState.Patrolling);
@@ -175,7 +177,6 @@ namespace Core.Enemy.AI
             {
                 ChangeState(AIState.Fleeing);
             }
-            // Check if the enemy is close enough to attack
             if (Vector2.Distance(transform.position, enemyDetection.PlayerPosition) <= 2f)
             {
                 ChangeState(AIState.PreparingAttack);
@@ -214,11 +215,13 @@ namespace Core.Enemy.AI
 
             if (distanceToPlayer <= closeAttackRange)
             {
+                currentAttackStrategy = combatSystem.BasicAttackStrategy;
                 combatSystem.SetCurrentAttackStrategy(combatSystem.BasicAttackStrategy);
                 ChangeState(AIState.Attacking);
             }
             else if (distanceToPlayer <= midAttackRange)
             {
+                currentAttackStrategy = combatSystem.SpecialAttackStrategy;
                 combatSystem.SetCurrentAttackStrategy(combatSystem.SpecialAttackStrategy);
                 ChangeState(AIState.Attacking);
             }
@@ -230,18 +233,44 @@ namespace Core.Enemy.AI
 
         private void AttackUpdate()
         {
-            // Check for conditions to switch to other states
             if (!enemyDetection.PlayerFound)
             {
                 ChangeState(AIState.Patrolling);
             }
-            // Check if the enemy is too far to attack
             if (Vector2.Distance(transform.position, enemyDetection.PlayerPosition) > 2f)
             {
                 ChangeState(AIState.Chasing);
             }
-            // Perform attack
-            combatSystem.PerformAttack();
+            combatSystem.PerformAttack(currentAttackStrategy);
+        }
+
+        private void HandleDeath()
+        {
+            // Obtener el componente PlayerStats del jugador
+            GameObject player = GameObject.FindGameObjectWithTag("Player"); // Asegúrate de que tu jugador tenga el tag "Player"
+            if (player != null)
+            {
+                PlayerStats playerStats = player.GetComponent<PlayerStats>();
+                if (playerStats != null)
+                {
+                    // Añadir la experiencia al jugador usando el valor del Scriptable Object
+                    playerStats.AddExperience((int)experienceConfig.ExperienceReward);
+                }
+                else
+                {
+                    Debug.LogError("PlayerStats component not found on the player.");
+                }
+            }
+            else
+            {
+                Debug.LogError("Player not found with tag 'Player'.");
+            }
+            Destroy(gameObject);
+        }
+
+        private void OnDestroy()
+        {
+            health.OnDeath -= HandleDeath;
         }
     }
 }

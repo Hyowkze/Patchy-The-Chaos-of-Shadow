@@ -1,36 +1,49 @@
-using System;
-using System.Collections.Generic;
-using Core.Player.Movement;
-using Core.Interfaces;
-using Core.Player.Movement.States;
 using UnityEngine;
+using Core.Interfaces;
+using Core.Combat;
+using Core.Player.Movement.States;
+using Player.Movement;
 
-namespace Player.Movement
+namespace Core.Player.Movement
 {
     public class MovementStateFactory
     {
-        private readonly Dictionary<MovementStateMachine.MovementState, IMovementState> states = new Dictionary<MovementStateMachine.MovementState, IMovementState>();
+        private readonly PatchyMovement movement;
+        private readonly MovementConfig config;
+        private readonly MovementStateMachine stateMachine;
+        private readonly CombatSystem combatSystem;
+        private readonly Rigidbody2D rb;
 
-        public MovementStateFactory(PatchyMovement movement, MovementConfig config, MovementStateMachine stateMachine)
+        public MovementStateFactory(PatchyMovement movement, MovementConfig config, MovementStateMachine stateMachine, CombatSystem combatSystem)
         {
-            Rigidbody2D rb = movement.GetComponent<Rigidbody2D>(); // Get Rigidbody2D here
-
-            states.Add(MovementStateMachine.MovementState.Idle, new IdleState(movement, rb, config, stateMachine)); // Pass rb and config
-            states.Add(MovementStateMachine.MovementState.Walking, new WalkingState(movement, rb, config, stateMachine)); // Pass rb and config
-            states.Add(MovementStateMachine.MovementState.Jumping, new JumpingState(movement, rb, config, stateMachine)); // Pass rb and config
-            states.Add(MovementStateMachine.MovementState.Dashing, new DashingState(movement, rb, config, stateMachine)); // Pass rb, config, and stateMachine
-            states.Add(MovementStateMachine.MovementState.Sprinting, new SprintingState(movement, rb, config, stateMachine)); // Pass rb and config
+            this.movement = movement;
+            this.config = config;
+            this.stateMachine = stateMachine;
+            this.combatSystem = combatSystem;
+            this.rb = movement.GetComponent<Rigidbody2D>();
         }
 
-        public IMovementState GetState(MovementStateMachine.MovementState state)
+        public IMovementState CreateState(MovementStateMachine.MovementState state)
         {
-            if (states.ContainsKey(state))
+            switch (state)
             {
-                return states[state];
-            }
-            else
-            {
-                throw new ArgumentException($"Invalid state: {state}");
+                case MovementStateMachine.MovementState.Idle:
+                    return new IdleState(movement, rb, config, stateMachine);
+                case MovementStateMachine.MovementState.Walking:
+                    return new WalkingState(movement, rb, config, stateMachine);
+                case MovementStateMachine.MovementState.Jumping:
+                    return new JumpingState(movement, rb, config, stateMachine);
+                case MovementStateMachine.MovementState.Dashing:
+                    return new DashingState(movement, rb, config, stateMachine);
+                case MovementStateMachine.MovementState.Sprinting:
+                    return new SprintingState(movement, rb, config, stateMachine);
+                case MovementStateMachine.MovementState.Attacking:
+                    return new AttackingState(movement, rb, config, stateMachine, combatSystem);
+                case MovementStateMachine.MovementState.SpecialAttacking:
+                    return new SpecialAttackingState(movement, rb, config, stateMachine, combatSystem);
+                default:
+                    Debug.LogError($"State {state} not implemented");
+                    return null;
             }
         }
     }

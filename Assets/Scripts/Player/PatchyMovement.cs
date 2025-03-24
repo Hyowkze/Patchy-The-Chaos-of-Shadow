@@ -5,13 +5,14 @@ using Core.Combat;
 using Player.Input;
 using Core.Utils;
 
-[RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(MovementStateMachine))]
-public class PatchyMovement : MonoBehaviour, IMoveable
+[RequireComponent(typeof(Rigidbody2D))]
+public class PatchyMovement : ComponentRequester
 {
     [Header("Configuration")]
-    [SerializeField] private MovementConfig moveConfig;
+    [SerializeField] public MovementConfig moveConfig;
     [SerializeField] private PhysicsConfig physicsConfig;
+    [SerializeField] private CombatSystem combatSystem;
 
     [Header("Layer Detection")]
     [SerializeField] private LayerMask wallLayer;
@@ -20,257 +21,71 @@ public class PatchyMovement : MonoBehaviour, IMoveable
     [Header("Ground Check")]
     [SerializeField] private Transform groundCheckPoint;
 
-    private IMovementBehavior basicMovement;
-    private Player.Movement.IDashBehavior dashBehavior;
-    private Player.Movement.ISprintBehavior sprintBehavior;
-    private Rigidbody2D rb;
-    private PlayerInputHandler inputHandler;
-    private CombatSystem combatSystem;
+    public bool IsGrounded;
+
     private MovementStateMachine stateMachine;
 
-    private bool IsAgainstWall;
-    public bool IsGrounded;
-    private float LastMoveDirection;
-
-    private float MoveSpeed => moveConfig.MoveSpeed;
-    private float JumpForce => moveConfig.JumpForce;
-    private float WallCollisionAngleThreshold => physicsConfig.WallCollisionAngleThreshold;
-    private float GroundCollisionAngleThreshold => physicsConfig.GroundCollisionAngleThreshold;
-
-    private bool canMove = true;
-    private float horizontalInput;
-    private bool facingRight = true;
-
-    public event System.Action<float> OnDashCooldownUpdate;
-    public event System.Action<float> OnSprintValueChanged;
-
-    private void Awake()
+    protected override void Awake()
     {
-        if (moveConfig == null || physicsConfig == null)
-        {
-            Debug.LogError($"Missing required configuration on {gameObject.name}");
-            enabled = false;
-            return;
-        }
-
-        rb = GetComponent<Rigidbody2D>();
-        combatSystem = GetComponent<CombatSystem>();
-        stateMachine = GetComponent<MovementStateMachine>();
-
-        InitializeBehaviors();
+        base.Awake();
+        stateMachine = RequestComponent<MovementStateMachine>();
     }
 
-    private void InitializeBehaviors()
+    protected override void Start()
     {
-        if (moveConfig == null)
-        {
-            Debug.LogError($"Missing MovementConfig on {gameObject.name}");
-            enabled = false;
-            return;
-        }
-
-        basicMovement = new GroundMovement(moveConfig);
-        dashBehavior = new Player.Movement.DashBehavior(moveConfig.DashSettings);
-        sprintBehavior = new SprintBehavior(moveConfig.SprintSettings);
+        
     }
 
-    private void Start()
+    protected override void SubscribeToEvents()
     {
-        inputHandler = PlayerInputHandler.Instance;
-        if (inputHandler == null)
-        {
-            Debug.LogError("PlayerInputHandler not found in scene");
-            enabled = false;
-            return;
-        }
+        PlayerInputHandler.Instance.OnMoveInputChanged += HandleMoveInput;
+        PlayerInputHandler.Instance.OnJumpInputChanged += HandleJumpInput;
+        PlayerInputHandler.Instance.OnSprintInputChanged += HandleSprintInput;
+        PlayerInputHandler.Instance.OnDashInputChanged += HandleDashInput;
+    }
 
-        if (combatSystem != null)
-        {
-            combatSystem.OnAttackStateChanged += HandleAttackState;
-        }
+    protected override void UnsubscribeFromEvents()
+    {
+        PlayerInputHandler.Instance.OnMoveInputChanged -= HandleMoveInput;
+        PlayerInputHandler.Instance.OnJumpInputChanged -= HandleJumpInput;
+        PlayerInputHandler.Instance.OnSprintInputChanged -= HandleSprintInput;
+        PlayerInputHandler.Instance.OnDashInputChanged -= HandleDashInput;
+    }
 
-        inputHandler.OnDashInputChanged += HandleDashInput;
-        inputHandler.OnMoveInputChanged += HandleMoveInput;
-        inputHandler.OnJumpInputChanged += HandleJumpInput;
-        inputHandler.OnSprintInputChanged += HandleSprintInput;
+    protected override void ValidateComponents()
+    {
+        // Validate required components
+        RequestComponent<MovementStateMachine>();
+        RequestComponent<Rigidbody2D>();
     }
 
     private void Update()
     {
-        if (!canMove) return;
-
-        UpdateDashState();
-        UpdateSprintState();
-    }
-
-    private void HandleMoveInput(Vector2 input)
-    {
-        horizontalInput = input.x;
-        HandleSpriteFlip();
-    }
-
-    private void HandleJumpInput()
-    {
-        if (IsGrounded)
-        {
-            Jump();
-        }
-    }
-
-    private void HandleSprintInput()
-    {
-        UpdateSprintState();
-    }
-
-    private void HandleDashInput()
-    {
-        if (dashBehavior.CanDash)
-        {
-            InitiateDash();
-        }
-    }
-
-    private void Jump()
-    {
-        rb.linearVelocity = new Vector2(rb.linearVelocity.x, JumpForce);
-        stateMachine.ChangeState(MovementStateMachine.MovementState.Jumping);
-    }
-
-    private void InitiateDash()
-    {
-        Vector2 dashDir = CalculateDashDirection();
-        rb.linearVelocity = dashBehavior.PerformDash(dashDir);
-        stateMachine.ChangeState(MovementStateMachine.MovementState.Dashing);
-    }
-
-    private Vector2 CalculateDashDirection()
-    {
-        return inputHandler.MoveInput != Vector2.zero
-            ? inputHandler.MoveInput.normalized
-            : new Vector2(facingRight ? 1f : -1f, 0f);
-    }
-
-    private void UpdateDashState()
-    {
-        dashBehavior.UpdateDashState(Time.deltaTime);
-        OnDashCooldownUpdate?.Invoke(dashBehavior.CooldownProgress);
-
-        if (dashBehavior.IsDashing && stateMachine.CurrentState != MovementStateMachine.MovementState.Dashing)
-        {
-            stateMachine.ChangeState(MovementStateMachine.MovementState.Dashing);
-        }        
-    }
-
-    private void UpdateSprintState()
-    {
-        float sprintMultiplier = sprintBehavior.CalculateSprintMultiplier(inputHandler.SprintValue);
-        OnSprintValueChanged?.Invoke(sprintMultiplier);
-
-        if (inputHandler.SprintValue > 0 && stateMachine.CurrentState != MovementStateMachine.MovementState.Sprinting)
-        {
-            stateMachine.ChangeState(MovementStateMachine.MovementState.Sprinting);
-        }        
-    }
-
-    private void HandleSpriteFlip()
-    {
-        if (horizontalInput > 0 && !facingRight)
-        {
-            SpriteUtils.FlipSprite(transform, ref facingRight);
-        }
-        else if (horizontalInput < 0 && facingRight)
-        {
-            SpriteUtils.FlipSprite(transform, ref facingRight);
-        }
+        stateMachine.UpdateState();
+        stateMachine.HandleInput(); // Add this line
     }
 
     private void FixedUpdate()
     {
-        if (!canMove) return;
-
-        if (stateMachine.CurrentState == MovementStateMachine.MovementState.Dashing) return;
-
-        float sprintMultiplier = sprintBehavior.CalculateSprintMultiplier(inputHandler.SprintValue);
-        Vector2 targetVelocity = basicMovement.CalculateVelocity(rb.linearVelocity, horizontalInput * sprintMultiplier);
-
-        if (IsAgainstWall && Mathf.Sign(horizontalInput) == Mathf.Sign(LastMoveDirection))
-        {
-            targetVelocity.x = 0;
-        }
-        LastMoveDirection = horizontalInput;
-
-        rb.linearVelocity = targetVelocity;
-
-        //No need to call UpdateMovementState here
+        stateMachine.FixedUpdateState();
     }
 
-    private void OnCollisionEnter2D(Collision2D collision)
+    private void HandleMoveInput(Vector2 input)
     {
-        foreach (ContactPoint2D contact in collision.contacts)
-        {
-            float angle = Vector2.Angle(contact.normal, Vector2.up);
-
-            if (((1 << collision.gameObject.layer) & wallLayer) != 0 && angle > WallCollisionAngleThreshold)
-            {
-                IsAgainstWall = true;
-            }
-
-            if (((1 << collision.gameObject.layer) & groundLayer) != 0 && angle < GroundCollisionAngleThreshold)
-            {
-                IsGrounded = true;
-            }
-        }
+        PlayerInputHandler.Instance.MoveInput = input;
     }
 
-    private void OnCollisionExit2D(Collision2D collision)
+    private void HandleJumpInput()
     {
-        if (((1 << collision.gameObject.layer) & wallLayer) != 0)
-        {
-            IsAgainstWall = false;
-        }
-
-        if (((1 << collision.gameObject.layer) & groundLayer) != 0)
-        {
-            IsGrounded = false;
-        }
+        stateMachine.ChangeState(MovementStateMachine.MovementState.Jumping);
     }
 
-    private void HandleAttackState(bool isAttacking)
+    private void HandleSprintInput()
     {
-        canMove = !isAttacking;
     }
 
-    private void OnDestroy()
+    private void HandleDashInput()
     {
-        if (combatSystem != null)
-        {
-            combatSystem.OnAttackStateChanged -= HandleAttackState;
-        }
-        if (inputHandler != null)
-        {
-            inputHandler.OnDashInputChanged -= HandleDashInput;
-            inputHandler.OnMoveInputChanged -= HandleMoveInput;
-            inputHandler.OnJumpInputChanged -= HandleJumpInput;
-            inputHandler.OnSprintInputChanged -= HandleSprintInput;
-        }
+        stateMachine.ChangeState(MovementStateMachine.MovementState.Dashing);
     }
-
-    private void OnDisable()
-    {
-        if (combatSystem != null)
-        {
-            combatSystem.OnAttackStateChanged -= HandleAttackState;
-        }
-        if (inputHandler != null)
-        {
-            inputHandler.OnDashInputChanged -= HandleDashInput;
-            inputHandler.OnMoveInputChanged -= HandleMoveInput;
-            inputHandler.OnJumpInputChanged -= HandleJumpInput;
-            inputHandler.OnSprintInputChanged -= HandleSprintInput;
-        }
-    }
-}
-
-internal interface IMoveable
-{
 }

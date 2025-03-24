@@ -1,57 +1,48 @@
 using UnityEngine;
-using Core.Player.Movement;
+using Core.Utils;
 using Core.Interfaces;
-using Player.Movement; 
+using Core.Combat;
+using Core.Player.Movement;
 
-namespace Core.Player.Movement
+namespace Player.Movement
 {
-    [RequireComponent(typeof(PatchyMovement))]
-    public class MovementStateMachine : MonoBehaviour
+    public class MovementStateMachine : ComponentRequester
     {
-        [SerializeField] private PatchyMovement movement;
-        [SerializeField] private Animator animator;
-        [SerializeField] private MovementConfig config;
-
-        private static readonly int AnimatorState = Animator.StringToHash("State");
-
         public enum MovementState
         {
             Idle,
             Walking,
             Jumping,
             Dashing,
-            Sprinting
+            Sprinting,
+            Attacking,
+            SpecialAttacking
         }
-
-        private IMovementState currentState;
-        private MovementStateFactory factory;
 
         public MovementState CurrentState { get; private set; }
 
-        private void Reset()
+        private MovementStateFactory stateFactory;
+        private CombatSystem combatSystem;
+        private IMovementState currentState;
+        private PatchyMovement patchyMovement;
+
+        protected override void Awake()
         {
-            movement = GetComponent<PatchyMovement>();
+            base.Awake();
+            combatSystem = RequestComponent<CombatSystem>();
+            patchyMovement = RequestComponent<PatchyMovement>();
+            // Create the state factory here, after components are requested
+            stateFactory = new MovementStateFactory(patchyMovement, patchyMovement.moveConfig, this, combatSystem);
         }
 
-        private void Awake()
+        protected override void Start()
         {
-            if (movement == null)
-            {
-                movement = GetComponent<PatchyMovement>();
-                Debug.LogWarning($"Movement reference was not set on {gameObject.name}. Auto-assigning.");
-            }
-            factory = new MovementStateFactory(movement, config, this); // Line 42
-        }
-
-        private void Start()
-        {
-            // Start in the Idle state
             ChangeState(MovementState.Idle);
         }
 
         public void ChangeState(MovementState newState)
         {
-            if (CurrentState == newState) return; // Avoid redundant state changes
+            if (CurrentState == newState) return;
 
             ExitState(CurrentState);
             CurrentState = newState;
@@ -60,10 +51,9 @@ namespace Core.Player.Movement
 
         private void EnterState(MovementState state)
         {
-            currentState = factory.GetState(state); // Line 26
-            currentState.OnStateChangeRequested += ChangeState; 
+            currentState = stateFactory.CreateState(state);
+            currentState.OnStateChangeRequested += ChangeState;
             currentState.Enter();
-        UpdateAnimator(state);
         }
 
         private void ExitState(MovementState state)
@@ -75,35 +65,21 @@ namespace Core.Player.Movement
             }
         }
 
-        private void Update()
+        public void UpdateState()
         {
-            currentState?.Update();
+            currentState.Update();
         }
 
-        private void FixedUpdate()
+        public void FixedUpdateState()
         {
-            currentState?.FixedUpdate();
+            currentState.FixedUpdate();
         }
 
-        private void UpdateAnimator(MovementState state)
+        public void HandleInput()
         {
-            switch (state)
+            if (currentState != null)
             {
-                case MovementState.Idle:
-                    animator?.SetInteger(AnimatorState, 0);
-                    break;
-                case MovementState.Walking:
-                    animator?.SetInteger(AnimatorState, 1);
-                    break;
-                case MovementState.Jumping:
-                    animator?.SetInteger(AnimatorState, 2);
-                    break;
-                case MovementState.Dashing:
-                    animator?.SetInteger(AnimatorState, 3);
-                    break;
-                case MovementState.Sprinting:
-                    animator?.SetInteger(AnimatorState, 4);
-                    break;
+                currentState.HandleInput();
             }
         }
     }

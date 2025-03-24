@@ -15,7 +15,6 @@ namespace Core.Pooling
             if (Instance == null)
             {
                 Instance = this;
-                DontDestroyOnLoad(gameObject);
             }
             else
             {

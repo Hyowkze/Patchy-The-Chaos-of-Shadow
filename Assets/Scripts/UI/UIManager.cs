@@ -5,7 +5,7 @@ using Core.Events;
 using Core.Player;
 using Core.Characters;
 using Player.Movement;
-using Core.Managers; // <--- Added this using directive
+using Core.Managers;
 
 namespace Core.UI
 {
@@ -23,8 +23,7 @@ namespace Core.UI
 
         [Header("Experience UI")]
         [SerializeField] private TextMeshProUGUI experienceText;
-        // Removemos el slider ya que no necesitamos mostrar progreso
-
+        
         [Header("Game Over UI")]
         [SerializeField] private GameObject gameOverPanel;
 
@@ -56,15 +55,9 @@ namespace Core.UI
 
         private void SubscribeToEvents()
         {
-            playerHealth.OnHealthValueChanged += UpdateHealthUI;
-            playerMovement.OnDashCooldownUpdate += UpdateDashUI;
-            playerMovement.OnSprintValueChanged += UpdateSprintUI;
+            playerHealth.OnHealthValueChanged += UpdateHealthUI;            
             playerReference.OnExperienceChanged += UpdateExperienceUI;
-
-            if (GameManager.Instance != null) // Access the singleton instance correctly
-            {
-                GameManager.Instance.OnGameOver += ShowGameOver;
-            }
+            GameManager.Instance.OnGameOver += ShowGameOver; // Subscribe directly
         }
 
         private void InitializeUI()
@@ -79,7 +72,7 @@ namespace Core.UI
         {
             if (healthSlider != null)
                 healthSlider.value = currentHealth / maxHealth;
-            
+
             if (healthText != null)
                 healthText.text = $"{Mathf.Ceil(currentHealth)}/{maxHealth}";
         }
@@ -112,23 +105,9 @@ namespace Core.UI
 
         private void OnDestroy()
         {
-            if (GameManager.Instance != null)
-            {
-                GameManager.Instance.OnGameOver -= ShowGameOver;
-            }
-            if (playerHealth != null)
-            {
-                playerHealth.OnHealthValueChanged -= UpdateHealthUI;
-            }
-            if (playerMovement != null)
-            {
-                playerMovement.OnDashCooldownUpdate -= UpdateDashUI;
-                playerMovement.OnSprintValueChanged -= UpdateSprintUI;
-            }
-            if (playerReference != null)
-            {
-                playerReference.OnExperienceChanged -= UpdateExperienceUI;
-            }
+            GameManager.Instance.OnGameOver -= ShowGameOver;
+            playerHealth.OnHealthValueChanged -= UpdateHealthUI;
+            playerReference.OnExperienceChanged -= UpdateExperienceUI;
         }
     }
 }

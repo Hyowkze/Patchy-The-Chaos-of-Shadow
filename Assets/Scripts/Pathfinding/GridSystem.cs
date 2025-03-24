@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using Core.Utils;
+using Core.Enemy; // Add this line
 
 namespace Core.Pathfinding
 {
@@ -24,8 +25,8 @@ namespace Core.Pathfinding
             Instance = this;
             //DontDestroyOnLoad(gameObject); // If you need the grid to persist between scenes
 
-            nodeRadius = config.nodeRadius;
-            gridSize = new Vector2Int(Mathf.RoundToInt(config.gridWorldSize.x / (nodeRadius * 2)), Mathf.RoundToInt(config.gridWorldSize.y / (nodeRadius * 2)));
+            nodeRadius = config.NodeRadius;
+            gridSize = config.GridDimensions;
             grid = CreateGrid();
         }
 
@@ -74,7 +75,7 @@ namespace Core.Pathfinding
 
         private Vector3 CalculateWorldPoint(int x, int y)
         {
-            Vector3 worldBottomLeft = transform.position - Vector3.right * config.gridWorldSize.x / 2 - Vector3.up * config.gridWorldSize.y / 2;
+            Vector3 worldBottomLeft = transform.position - Vector3.right * (gridSize.x * nodeRadius) - Vector3.up * (gridSize.y * nodeRadius);
             return worldBottomLeft + Vector3.right * (x * nodeRadius * 2 + nodeRadius) + Vector3.up * (y * nodeRadius * 2 + nodeRadius);
         }
 
@@ -82,8 +83,8 @@ namespace Core.Pathfinding
         {
             if (grid == null) return null; // Add this line
 
-            float percentX = Mathf.Clamp01((worldPosition.x + config.gridWorldSize.x / 2) / config.gridWorldSize.x);
-            float percentY = Mathf.Clamp01((worldPosition.y + config.gridWorldSize.y / 2) / config.gridWorldSize.y);
+            float percentX = Mathf.Clamp01((worldPosition.x + (gridSize.x * nodeRadius)) / (gridSize.x * nodeRadius * 2));
+            float percentY = Mathf.Clamp01((worldPosition.y + (gridSize.y * nodeRadius)) / (gridSize.y * nodeRadius * 2));
 
             int x = Mathf.RoundToInt((gridSize.x - 1) * percentX);
             int y = Mathf.RoundToInt((gridSize.y - 1) * percentY);

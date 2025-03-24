@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Core.Pathfinding;
+using Core.Enemy; 
 
 namespace Core.Pathfinding
 {
@@ -12,7 +13,7 @@ namespace Core.Pathfinding
         private PathRequest currentRequest;
         private bool isProcessingPath;
 
-        [SerializeField] private PathfindingConfig config; // Add a field to hold the PathfindingConfig
+        [SerializeField] private PathfindingConfig config;
 
         private void Awake()
         {

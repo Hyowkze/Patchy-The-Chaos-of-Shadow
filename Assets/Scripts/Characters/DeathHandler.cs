@@ -1,40 +1,40 @@
 using UnityEngine;
-using Core.Characters;
-using Core.Enemy.AI;
+using Core.Player;
+using Core.Utils;
 using Core.Managers;
-using Core.Player; // <--- Added this using directive
 
-[RequireComponent(typeof(Health))]
-public class DeathHandler : MonoBehaviour
+namespace Core.Characters
 {
-    private Health health;
-
-    private void Awake()
+    [RequireComponent(typeof(PlayerStats))]
+    public class DeathHandler : EventSubscriber
     {
-        health = GetComponent<Health>();
-    }
+        private PlayerStats playerStats;
 
-    private void OnEnable()
-    {
-        health.OnDeath += HandleDeath;
-    }
-
-    private void OnDisable()
-    {
-        health.OnDeath -= HandleDeath;
-    }
-
-    private void HandleDeath()
-    {
-        if (TryGetComponent<EnemyAIStateMachine>(out var enemy))
+        private void Awake()
         {
-            GameManager.Instance.RegisterDefeatedEnemy(gameObject.name);
-            Destroy(gameObject);
+            playerStats = GetComponent<PlayerStats>();
         }
-        else if (TryGetComponent<PlayerStats>(out var player))
+
+        protected override void SubscribeToEvents()
         {
-            GameManager.Instance.HandlePlayerDeath();
-            gameObject.SetActive(false);
+            playerStats.OnExperienceChanged += HandleExperienceChanged;
+        }
+
+        protected override void UnsubscribeFromEvents()
+        {
+            if (playerStats != null)
+            {
+                playerStats.OnExperienceChanged -= HandleExperienceChanged;
+            }
+        }
+
+        private void HandleExperienceChanged(int experience)
+        {
+            if (experience <= 0)
+            {
+                playerStats.HandleDeath();
+                GameManager.Instance.GameOver(); // Call GameOver directly
+            }
         }
     }
 }

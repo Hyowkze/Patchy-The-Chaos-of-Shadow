@@ -1,68 +1,36 @@
 using UnityEngine;
-using Core.Interfaces;
+using Core.Player.Movement.States;
+using Player.Movement;
 using Player.Input;
-using Core.Player.Movement;
-using System;
 
 namespace Core.Player.Movement.States
 {
-    public class SprintingState : IMovementState
+    public class SprintingState : MovementStateBase
     {
-        private readonly PatchyMovement movement;
-        private readonly Rigidbody2D rb;
-        private readonly MovementConfig config;
-        private PlayerInputHandler inputHandler;
-        private MovementStateMachine stateMachine;
-
         public SprintingState(PatchyMovement movement, Rigidbody2D rb, MovementConfig config, MovementStateMachine stateMachine)
+            : base(movement, rb, config, stateMachine) { }
+
+        public override void HandleInput() // Change from Update to HandleInput
         {
-            this.movement = movement;
-            this.rb = rb;
-            this.config = config;
-            inputHandler = PlayerInputHandler.Instance;
-            this.stateMachine = stateMachine;
-        }
-
-        public void Enter()
-        {
-        }
-
-        public void Update()
-        {
-            HandleInput(inputHandler.MoveInput);
-        }
-
-        public void FixedUpdate()
-        {
-            Vector2 currentVelocity = rb.linearVelocity;
-            float targetVelocity = inputHandler.MoveInput.x * config.MoveSpeed * config.SprintSettings.SprintMultiplier;
-
-            rb.linearVelocity = new Vector2(
-                Mathf.Lerp(currentVelocity.x, targetVelocity, config.GroundFriction * Time.fixedDeltaTime),
-                currentVelocity.y
-            );
-        }
-
-        public void Exit() { }
-
-        public void HandleInput(Vector2 input)
-        {
-            if (inputHandler.MoveInput.x == 0)
+            if (PlayerInputHandler.Instance.MoveInput.x == 0)
             {
                 RequestStateChange(MovementStateMachine.MovementState.Idle);
             }
-            else if (inputHandler.SprintValue == 0)
+            else if (PlayerInputHandler.Instance.SprintValue == 0)
             {
                 RequestStateChange(MovementStateMachine.MovementState.Walking);
             }
         }
 
-        public event Action<MovementStateMachine.MovementState> OnStateChangeRequested;
-
-        public void RequestStateChange(MovementStateMachine.MovementState newState)
+        public override void FixedUpdate()
         {
-            // Invoke the event here!
-            OnStateChangeRequested?.Invoke(newState);
+            Vector2 currentVelocity = rb.linearVelocity;
+            float targetVelocity = PlayerInputHandler.Instance.MoveInput.x * config.MoveSpeed * config.SprintSettings.SprintMultiplier;
+
+            rb.linearVelocity = new Vector2(
+                Mathf.Lerp(currentVelocity.x, targetVelocity, config.GroundFriction * Time.fixedDeltaTime),
+                currentVelocity.y
+            );
         }
     }
 }

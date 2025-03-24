@@ -1,35 +1,24 @@
 using UnityEngine;
-using Core.Interfaces;
-using Core.Player.Movement;
-using System;
+using Core.Player.Movement.States;
+using Player.Movement;
 
 namespace Core.Player.Movement.States
 {
-    public class DashingState : IMovementState
+    public class DashingState : MovementStateBase
     {
-        private readonly PatchyMovement movement;
-        private readonly Rigidbody2D rb;
-        private readonly MovementConfig config;
         private float dashTimeLeft;
-        private MovementStateMachine stateMachine;
 
         public DashingState(PatchyMovement movement, Rigidbody2D rb, MovementConfig config, MovementStateMachine stateMachine)
-        {
-            this.movement = movement;
-            this.rb = rb;
-            this.config = config;
-            this.stateMachine = stateMachine;
-        }
+            : base(movement, rb, config, stateMachine) { }
 
-        public void Enter()
+        public override void Enter()
         {
             dashTimeLeft = config.DashSettings.DashDuration;
             ApplyDashForce();
         }
 
-        public void Update()
+        public override void HandleInput() // Change from Update to HandleInput
         {
-            HandleInput(Vector2.zero);
             dashTimeLeft -= Time.deltaTime;
             if (dashTimeLeft <= 0)
             {
@@ -37,25 +26,13 @@ namespace Core.Player.Movement.States
             }
         }
 
-        public void FixedUpdate() { }
-
-        public void Exit()
+        public override void Exit()
         {
             rb.linearVelocity = new Vector2(rb.linearVelocity.x * 0.5f, rb.linearVelocity.y);
         }
 
-        public void HandleInput(Vector2 input) { }
-
-        public event Action<MovementStateMachine.MovementState> OnStateChangeRequested;
-
-        public void RequestStateChange(MovementStateMachine.MovementState newState)
-        {
-            // Invoke the event here!
-            OnStateChangeRequested?.Invoke(newState);
-        }
-
         private void ApplyDashForce()
-        {            
+        {
             Vector2 dashDirection = movement.transform.localScale.x > 0 ? Vector2.right : Vector2.left;
             rb.linearVelocity = dashDirection * config.DashSettings.DashSpeed;
         }

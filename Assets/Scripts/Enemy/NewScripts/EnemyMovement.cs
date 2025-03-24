@@ -190,6 +190,7 @@ public class EnemyMovement : MonoBehaviour
                 if (pathfinding != null)
                 {
                     pathfinding.UpdatePath();
+                    targetPathIndex = 0; // Reset the targetPathIndex
                 }
             }
         }
@@ -198,6 +199,7 @@ public class EnemyMovement : MonoBehaviour
             if (pathfinding != null)
             {
                 pathfinding.UpdatePath();
+                targetPathIndex = 0; // Reset the targetPathIndex
             }
         }
     }

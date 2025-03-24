@@ -1,110 +1,126 @@
 using UnityEngine;
-using System.Collections.Generic;
-using Core.Enemy;
 using Core.Pathfinding;
+using System.Collections.Generic;
+using Core.Utils;
 
 namespace Core.Enemy
 {
-    [RequireComponent(typeof(EnemyDetection))]
     public class EnemyPathfinding : MonoBehaviour
     {
-        [Header("Configuration")]
         [SerializeField] private PathfindingConfig config;
+        [SerializeField] private Transform target;
+        [SerializeField] private float updatePathInterval = 0.5f;
+        [SerializeField] private float stoppingDistance = 0.5f;
+        [SerializeField] private bool showGizmos = true;
 
-        [Header("Pathfinding Settings")]
-        [SerializeField] private float pathUpdateRate = 0.5f;
-        [SerializeField] private bool debugPath;
-
-        private EnemyDetection detection;
-        private readonly List<Vector3> currentPath = new List<Vector3>();
-        private float pathUpdateTimer;
-
-        public IReadOnlyList<Vector3> CurrentPath => currentPath;
+        private float nodeRadius;
+        private float timer;
+        private List<Vector3> path;
+        public List<Vector3> CurrentPath => path;
+        private int targetIndex;
+        private EnemyMovement enemyMovement;
 
         private void Awake()
         {
-            detection = GetComponent<EnemyDetection>();
-
-            if (config == null)
-            {
-                Debug.LogError($"Missing PathfindingConfig on {gameObject.name}");
-                enabled = false;
-                return;
-            }
+            enemyMovement = GetComponent<EnemyMovement>();
         }
 
         private void Start()
         {
-            UpdatePath();
+            if (config == null)
+            {
+                Debug.LogError("PathfindingConfig is not assigned in EnemyPathfinding!");
+                enabled = false;
+                return;
+            }
+            if (target == null)
+            {
+                Debug.LogError("Target is not assigned in EnemyPathfinding!");
+                enabled = false;
+                return;
+            }
+            nodeRadius = config.NodeRadius;
+            timer = updatePathInterval;
         }
 
         private void Update()
         {
-            if (!detection.PlayerFound) return;
-
-            pathUpdateTimer -= Time.deltaTime;
-            if (pathUpdateTimer <= 0f)
+            timer -= Time.deltaTime;
+            if (timer <= 0)
             {
-                UpdatePath();
-                pathUpdateTimer = pathUpdateRate;
+                timer = updatePathInterval;
+                RequestPath();
             }
         }
 
-        private void OnEnable()
+        private void RequestPath()
         {
-            if (detection != null)
-            {
-                // Suscribirse a eventos si es necesario
-            }
-        }
-
-        private void OnDisable()
-        {
-            // Desuscribirse de eventos
-        }
-
-        public void UpdatePath()
-        {
-            if (!IsPathfindingPossible()) return;
-
-            try
-            {
-                PathRequestManager.RequestPath(transform.position, detection.PlayerPosition, OnPathFound);
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogError($"Pathfinding error on {gameObject.name}: {e.Message}");
-            }
+            PathRequestManager.RequestPath(transform.position, target.position, OnPathFound);
         }
 
         private void OnPathFound(List<Vector3> newPath)
         {
-            currentPath.Clear();
-            currentPath.AddRange(newPath);
+            if (newPath == null || newPath.Count == 0)
+            {
+                Debug.LogWarning("No path found.");
+                return;
+            }
+            path = newPath;
+            targetIndex = 0;
+            FollowPath();
         }
 
-        private bool IsPathfindingPossible()
+        private void FollowPath()
         {
-            return detection != null &&
-                   detection.PlayerFound;
+            if (path == null || path.Count == 0) return;
+
+            Vector3 currentWaypoint = path[targetIndex];
+            if (Vector3.Distance(transform.position, currentWaypoint) < stoppingDistance)
+            {
+                targetIndex++;
+                if (targetIndex >= path.Count)
+                {
+                    path = null;
+                    return;
+                }
+                currentWaypoint = path[targetIndex];
+            }
+
+            //Vector3 direction = (currentWaypoint - transform.position).normalized;
+            //enemyMovement.Move(direction); // Remove this line
         }
 
         private void OnDrawGizmos()
         {
-            if (!Application.isPlaying || !debugPath) return;
-            DrawPathGizmos();
+            if (!showGizmos) return;
+
+            if (config == null) return;
+
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(transform.position, config.NodeRadius);
+
+            if (path != null)
+            {
+                for (int i = targetIndex; i < path.Count; i++)
+                {
+                    Gizmos.color = Color.green;
+                    Gizmos.DrawCube(path[i], Vector3.one * (nodeRadius * 0.5f));
+
+                    if (i == targetIndex)
+                    {
+                        Gizmos.DrawLine(transform.position, path[i]);
+                    }
+                    else
+                    {
+                        Gizmos.DrawLine(path[i - 1], path[i]);
+                    }
+                }
+            }
         }
 
-        private void DrawPathGizmos()
+        public void UpdatePath()
         {
-            if (currentPath == null || currentPath.Count == 0) return;
-
-            Gizmos.color = Color.blue;
-            for (int i = 0; i < currentPath.Count - 1; i++)
-            {
-                Gizmos.DrawLine(currentPath[i], currentPath[i + 1]);
-                Gizmos.DrawWireSphere(currentPath[i], config.nodeRadius);
-            }
+            RequestPath();
         }
     }
 }
