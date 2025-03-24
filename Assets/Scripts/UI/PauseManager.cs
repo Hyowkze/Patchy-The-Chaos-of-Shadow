@@ -12,8 +12,10 @@ public class PauseManager : MonoBehaviour
     void Start()
     {
         BtnResume.onClick.AddListener(Resume);
-       
+        BtnMainMenu.onClick.AddListener(GoToMainMenu);
         BtnQuit.onClick.AddListener(QuitGame);
+
+        PanelPause.SetActive(false); // Asegurarse de que el menú está oculto al inicio
     }
 
     void Update()
@@ -30,7 +32,6 @@ public class PauseManager : MonoBehaviour
     public void Resume()
     {
         PanelPause.SetActive(false);
-        SceneManager.LoadScene("Mision1");
         Time.timeScale = 1f; 
         isPaused = false;
     }
@@ -42,6 +43,11 @@ public class PauseManager : MonoBehaviour
         isPaused = true;
     }
 
+    public void GoToMainMenu()
+    {
+        Time.timeScale = 1f; // Restablecer el tiempo antes de cambiar de escena
+        SceneManager.LoadScene("MenuPrincipal");
+    }
 
     public void QuitGame()
     {
@@ -49,4 +55,3 @@ public class PauseManager : MonoBehaviour
         Debug.Log("Juego cerrado"); 
     }
 }
-
