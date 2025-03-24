@@ -32,7 +32,7 @@ public class PatchyMovement : MonoBehaviour, IMoveable
     public bool IsGrounded;
     private float LastMoveDirection;
 
-<<<<<<< Updated upstream
+
     private float MoveSpeed => moveConfig.MoveSpeed;
     private float JumpForce => moveConfig.JumpForce;
     private float WallCollisionAngleThreshold => physicsConfig.WallCollisionAngleThreshold;
@@ -76,9 +76,6 @@ public class PatchyMovement : MonoBehaviour, IMoveable
     }
 
     private void Start()
-=======
-    protected override void Start()
->>>>>>> Stashed changes
     {
         inputHandler = PlayerInputHandler.Instance;
         if (inputHandler == null)
@@ -97,6 +94,13 @@ public class PatchyMovement : MonoBehaviour, IMoveable
         inputHandler.OnMoveInputChanged += HandleMoveInput;
         inputHandler.OnJumpInputChanged += HandleJumpInput;
         inputHandler.OnSprintInputChanged += HandleSprintInput;
+    }
+
+    protected override void ValidateComponents()
+    {
+        // Validate required components
+        RequestComponent<MovementStateMachine>();
+        RequestComponent<Rigidbody2D>();
     }
 
     protected override void ValidateComponents()
@@ -130,10 +134,7 @@ public class PatchyMovement : MonoBehaviour, IMoveable
 
     private void HandleSprintInput()
     {
-<<<<<<< Updated upstream
         UpdateSprintState();
-=======
->>>>>>> Stashed changes
     }
 
     private void HandleDashInput()

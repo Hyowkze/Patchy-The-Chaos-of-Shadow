@@ -4,11 +4,7 @@ using Core.Characters;
 using Core.Enemy.AI;
 using Core.Managers;
 using Core.Player; // <--- Added this using directive
-=======
-using Core.Player;
 using Core.Utils;
-using Core.Managers;
->>>>>>> Stashed changes
 
 [RequireComponent(typeof(Health))]
 public class DeathHandler : MonoBehaviour

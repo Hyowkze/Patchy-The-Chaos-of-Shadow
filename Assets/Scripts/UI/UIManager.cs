@@ -60,15 +60,12 @@ namespace Core.UI
             playerMovement.OnDashCooldownUpdate += UpdateDashUI;
             playerMovement.OnSprintValueChanged += UpdateSprintUI;
             playerReference.OnExperienceChanged += UpdateExperienceUI;
-<<<<<<< Updated upstream
+
 
             if (GameManager.Instance != null) // Access the singleton instance correctly
             {
                 GameManager.Instance.OnGameOver += ShowGameOver;
             }
-=======
-            GameManager.Instance.OnGameOver += ShowGameOver; // Subscribe directly
->>>>>>> Stashed changes
         }
 
         private void InitializeUI()
@@ -116,7 +113,6 @@ namespace Core.UI
 
         private void OnDestroy()
         {
-<<<<<<< Updated upstream
             if (GameManager.Instance != null)
             {
                 GameManager.Instance.OnGameOver -= ShowGameOver;
@@ -134,11 +130,6 @@ namespace Core.UI
             {
                 playerReference.OnExperienceChanged -= UpdateExperienceUI;
             }
-=======
-            GameManager.Instance.OnGameOver -= ShowGameOver;
-            playerHealth.OnHealthValueChanged -= UpdateHealthUI;
-            playerReference.OnExperienceChanged -= UpdateExperienceUI;
->>>>>>> Stashed changes
         }
     }
 }
