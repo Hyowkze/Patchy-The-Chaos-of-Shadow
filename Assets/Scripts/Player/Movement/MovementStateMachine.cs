@@ -28,6 +28,7 @@ namespace Core.Player.Movement
 
         public MovementState CurrentState { get; private set; }
 
+<<<<<<< Updated upstream
         private void Reset()
         {
             movement = GetComponent<PatchyMovement>();
@@ -46,6 +47,24 @@ namespace Core.Player.Movement
         private void Start()
         {
             // Start in the Idle state
+=======
+        private MovementStateFactory stateFactory;
+        private CombatSystem combatSystem;
+        private IMovementState currentState;
+        private PatchyMovement patchyMovement;
+
+        protected override void Awake()
+        {
+            base.Awake();
+            combatSystem = RequestComponent<CombatSystem>();
+            patchyMovement = RequestComponent<PatchyMovement>();
+            // Create the state factory here, after components are requested
+            stateFactory = new MovementStateFactory(patchyMovement, patchyMovement.moveConfig, this, combatSystem);
+        }
+
+        protected override void Start()
+        {
+>>>>>>> Stashed changes
             ChangeState(MovementState.Idle);
         }
 
@@ -87,6 +106,7 @@ namespace Core.Player.Movement
 
         private void UpdateAnimator(MovementState state)
         {
+<<<<<<< Updated upstream
             switch (state)
             {
                 case MovementState.Idle:
@@ -104,6 +124,11 @@ namespace Core.Player.Movement
                 case MovementState.Sprinting:
                     animator?.SetInteger(AnimatorState, 4);
                     break;
+=======
+            if (currentState != null)
+            {
+                currentState.HandleInput();
+>>>>>>> Stashed changes
             }
         }
     }

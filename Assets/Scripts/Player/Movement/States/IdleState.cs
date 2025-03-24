@@ -34,11 +34,18 @@ namespace Core.Player.Movement.States
 
         public void FixedUpdate()
         {
-            Vector2 currentVelocity = rb.linearVelocity;
-            rb.linearVelocity = new Vector2(
-                Mathf.Lerp(currentVelocity.x, 0, config.GroundFriction * Time.fixedDeltaTime),
-                currentVelocity.y
-            );
+            if (rb != null) // Add null check here
+            {
+                Vector2 currentVelocity = rb.linearVelocity;
+                rb.linearVelocity = new Vector2(
+                    Mathf.Lerp(currentVelocity.x, 0, config.GroundFriction * Time.fixedDeltaTime),
+                    currentVelocity.y
+                );
+            }
+            else
+            {
+                Debug.LogError("Rigidbody2D is null in IdleState.FixedUpdate()!");
+            }
         }
 
         public void Exit() { }

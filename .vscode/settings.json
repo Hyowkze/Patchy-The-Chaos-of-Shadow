@@ -56,5 +56,9 @@
         "temp/": true,
         "Temp/": true
     },
+<<<<<<< Updated upstream
     "dotnet.defaultSolution": "Proyecto.sln"
+=======
+    "dotnet.defaultSolution": "Patchy-The-Chaos-of-Shadow-main.sln"
+>>>>>>> Stashed changes
 }

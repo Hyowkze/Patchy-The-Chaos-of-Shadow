@@ -9,6 +9,7 @@ namespace Core.Characters
         [Header("Health Settings")]
         [SerializeField] private float maxHealth = 100f;
         [SerializeField] private float currentHealth;
+        private bool isInvulnerable = false;
 
         public float MaxHealth => maxHealth;
         public float CurrentHealth => currentHealth;
@@ -38,14 +39,26 @@ namespace Core.Characters
 
         public void TakeDamage(float damage)
         {
+            if (isInvulnerable) return;
+
             currentHealth -= damage;
             currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
             OnHealthValueChanged?.Invoke(currentHealth, maxHealth);
 
             if (currentHealth <= 0)
             {
-                OnDeath?.Invoke();
+                Die();
             }
+        }
+
+        private void Die()
+        {
+            OnDeath?.Invoke();
+        }
+
+        public void SetInvulnerable(bool invulnerable)
+        {
+            isInvulnerable = invulnerable;
         }
 
         public void Heal(float amount)
