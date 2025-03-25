@@ -37,7 +37,12 @@ namespace Player.Movement
 
         protected override void Start()
         {
-            ChangeState(MovementState.Idle);
+            base.Start();
+            // Asegurarse de que hay un estado inicial
+            if (currentState == null)
+            {
+                ChangeState(MovementState.Idle);
+            }
         }
 
         public void ChangeState(MovementState newState)
@@ -52,8 +57,15 @@ namespace Player.Movement
         private void EnterState(MovementState state)
         {
             currentState = stateFactory.CreateState(state);
-            currentState.OnStateChangeRequested += ChangeState;
-            currentState.Enter();
+            if (currentState != null) // Añadir verificación null
+            {
+                currentState.OnStateChangeRequested += ChangeState;
+                currentState.Enter();
+            }
+            else
+            {
+                Debug.LogError($"Failed to create state {state}");
+            }
         }
 
         private void ExitState(MovementState state)
@@ -67,17 +79,23 @@ namespace Player.Movement
 
         public void UpdateState()
         {
-            currentState.Update();
+            if (currentState != null) // Añadir verificación null
+            {
+                currentState.Update();
+            }
         }
 
         public void FixedUpdateState()
         {
-            currentState.FixedUpdate();
+            if (currentState != null) // Añadir verificación null
+            {
+                currentState.FixedUpdate();
+            }
         }
 
         public void HandleInput()
         {
-            if (currentState != null)
+            if (currentState != null) // Añadir verificación null
             {
                 currentState.HandleInput();
             }

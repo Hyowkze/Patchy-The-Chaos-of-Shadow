@@ -19,12 +19,13 @@ namespace Core.Characters
 
         private void Awake()
         {
-            currentHealth = maxHealth;
+            currentHealth = maxHealth; // Asegurar que la salud inicial sea igual a la máxima
         }
 
         private void Start()
         {
             ValidateHealth();
+            OnHealthValueChanged?.Invoke(currentHealth, maxHealth); // Notificar el valor inicial
         }
 
         private void ValidateHealth()

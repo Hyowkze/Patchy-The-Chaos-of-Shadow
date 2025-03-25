@@ -14,6 +14,8 @@ public class PauseManager : MonoBehaviour
         BtnResume.onClick.AddListener(Resume);
         BtnMainMenu.onClick.AddListener(GoToMainMenu);
         BtnQuit.onClick.AddListener(QuitGame);
+
+        PanelPause.SetActive(false); 
     }
 
     void Update()
@@ -30,26 +32,26 @@ public class PauseManager : MonoBehaviour
     public void Resume()
     {
         PanelPause.SetActive(false);
-        Time.timeScale = 1f;
+        Time.timeScale = 1f; 
         isPaused = false;
     }
 
-    public void Pause()
+    public void Pause() 
     {
         PanelPause.SetActive(true);
-        Time.timeScale = 0f;
+        Time.timeScale = 0f; 
         isPaused = true;
     }
 
     public void GoToMainMenu()
     {
-        Time.timeScale = 1f;
+        Time.timeScale = 1f; 
         SceneManager.LoadScene("MainMenu");
     }
 
     public void QuitGame()
     {
-        Application.Quit();
-        Debug.Log("Juego cerrado");
+        Time.timeScale = 1f; 
+        SceneManager.LoadScene("MainMenu");
     }
 }

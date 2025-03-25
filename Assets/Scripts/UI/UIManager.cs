@@ -13,7 +13,7 @@ namespace Core.UI
     {
         [Header("Health UI")]
         [SerializeField] private Slider healthSlider;
-        [SerializeField] private TextMeshProUGUI healthText;
+        // Removemos la referencia al texto de salud
 
         [Header("Sprint UI")]
         [SerializeField] private Slider sprintSlider;
@@ -39,25 +39,64 @@ namespace Core.UI
 
         private void ValidateReferences()
         {
-            if (playerReference == null || playerHealth == null || playerMovement == null)
+            if (playerReference == null)
             {
-                Debug.LogError($"Missing required references on {gameObject.name}");
-                enabled = false;
-                return;
+                playerReference = FindAnyObjectByType<PlayerStats>();
+                Debug.Log($"Attempting to find PlayerStats: {(playerReference != null ? "Found" : "Not Found")}");
             }
+
+            if (playerReference != null)
+            {
+                if (playerHealth == null)
+                {
+                    playerHealth = playerReference.GetComponent<Health>();
+                    Debug.Log($"Attempting to get Health component: {(playerHealth != null ? "Found" : "Not Found")}");
+                }
+
+                if (playerMovement == null)
+                {
+                    playerMovement = playerReference.GetComponent<PatchyMovement>();
+                    Debug.Log($"Attempting to get PatchyMovement component: {(playerMovement != null ? "Found" : "Not Found")}");
+                }
+            }
+
+            // Validar UI elements
+            if (healthSlider == null)
+                Debug.LogWarning("Health Slider is not assigned in UIManager");
+
+            if (sprintSlider == null)
+                Debug.LogWarning("Sprint Slider is not assigned in UIManager");
+
+            if (dashCooldownImage == null)
+                Debug.LogWarning("Dash Cooldown Image is not assigned in UIManager");
+
+            if (experienceText == null)
+                Debug.LogWarning("Experience Text is not assigned in UIManager");
+
+            if (gameOverPanel == null)
+                Debug.LogWarning("Game Over Panel is not assigned in UIManager");
         }
 
         private void Start()
         {
-            SubscribeToEvents();
-            InitializeUI();
+            ValidateReferences();
+            if (enabled) // Solo si las validaciones pasaron
+            {
+                SubscribeToEvents();
+                InitializeUI();
+            }
         }
 
         private void SubscribeToEvents()
         {
-            playerHealth.OnHealthValueChanged += UpdateHealthUI;            
-            playerReference.OnExperienceChanged += UpdateExperienceUI;
-            GameManager.Instance.OnGameOver += ShowGameOver; // Subscribe directly
+            if (playerHealth != null)
+                playerHealth.OnHealthValueChanged += UpdateHealthUI;
+                
+            if (playerReference != null)
+                playerReference.OnExperienceChanged += UpdateExperienceUI;
+                
+            if (GameManager.Instance != null)
+                GameManager.Instance.OnGameOver += ShowGameOver;
         }
 
         private void InitializeUI()
@@ -72,9 +111,6 @@ namespace Core.UI
         {
             if (healthSlider != null)
                 healthSlider.value = currentHealth / maxHealth;
-
-            if (healthText != null)
-                healthText.text = $"{Mathf.Ceil(currentHealth)}/{maxHealth}";
         }
 
         private void UpdateSprintUI(float sprintValue)
@@ -105,9 +141,14 @@ namespace Core.UI
 
         private void OnDestroy()
         {
-            GameManager.Instance.OnGameOver -= ShowGameOver;
-            playerHealth.OnHealthValueChanged -= UpdateHealthUI;
-            playerReference.OnExperienceChanged -= UpdateExperienceUI;
+            if (GameManager.Instance != null)
+                GameManager.Instance.OnGameOver -= ShowGameOver;
+                
+            if (playerHealth != null)
+                playerHealth.OnHealthValueChanged -= UpdateHealthUI;
+                
+            if (playerReference != null)
+                playerReference.OnExperienceChanged -= UpdateExperienceUI;
         }
     }
 }

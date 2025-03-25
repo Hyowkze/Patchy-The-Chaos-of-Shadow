@@ -1,5 +1,7 @@
 using UnityEngine;
 using Core.Characters;
+using Core.Pooling;
+using Core.Combat.Projectiles;
 
 namespace Core.Combat
 {
@@ -21,6 +23,7 @@ namespace Core.Combat
 
         public IAttackStrategy BasicAttackStrategy { get; private set; }
         public IAttackStrategy SpecialAttackStrategy { get; private set; }
+        public AttackConfig AttackConfig => attackConfig;
 
         public event System.Action<bool> OnAttackStateChanged;
 
@@ -28,9 +31,28 @@ namespace Core.Combat
         {
             health = GetComponent<Health>();
             BasicAttackStrategy = new BasicAttackStrategy(attackConfig);
-            SpecialAttackStrategy = new RaycastAttackStrategy(attackConfig.specialDamage, attackConfig.shootRange);
+            SpecialAttackStrategy = new HomingAttackStrategy(attackConfig); // Cambiar a HomingAttackStrategy
             currentDefenseStrategy = new BasicDefenseStrategy(defenseConfig);
             currentAttackStrategy = BasicAttackStrategy;
+        }
+
+        private void Start()
+        {
+            InitializeAttackPools();
+        }
+
+        private void InitializeAttackPools()
+        {
+            if (attackConfig.basicProjectilePrefab != null)
+            {
+                ObjectPool.Instance.CreatePool(attackConfig.basicAttackPoolTag, 
+                    attackConfig.basicProjectilePrefab, attackConfig.poolSize);
+            }
+            if (attackConfig.specialProjectilePrefab != null)
+            {
+                ObjectPool.Instance.CreatePool(attackConfig.specialAttackPoolTag, 
+                    attackConfig.specialProjectilePrefab, attackConfig.poolSize);
+            }
         }
 
         public void SetCurrentAttackStrategy(IAttackStrategy strategy)

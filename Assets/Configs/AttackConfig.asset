@@ -13,6 +13,16 @@ MonoBehaviour:
   m_Name: AttackConfig
   m_EditorClassIdentifier: 
   baseDamage: 20
+  basicProjectileSpeed: 10
+  basicShootRange: 10
+  basicAttackPoolTag: BasicAttack
+  basicProjectilePrefab: {fileID: 0}
   specialDamage: 40
-  shootRange: 10
-  specialAttackCooldown: 2
+  specialProjectileSpeed: 15
+  specialShootRange: 50
+  specialAttackCooldown: 5
+  aimingTime: 1
+  specialAttackPoolTag: SpecialAttack
+  specialProjectilePrefab: {fileID: 0}
+  poolSize: 5
+  aimIndicatorPrefab: {fileID: 0}

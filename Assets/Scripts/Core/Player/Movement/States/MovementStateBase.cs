@@ -1,6 +1,6 @@
 using UnityEngine;
 using Core.Interfaces;
-using Player.Input;
+using Player.InputSystem; // Actualizar este using
 using System;
 using Player.Movement;
 

@@ -13,16 +13,14 @@ MonoBehaviour:
   m_Name: MovementConfig
   m_EditorClassIdentifier: 
   MoveSpeed: 5
-  JumpForce: 12
+  JumpForce: 10
+  GroundFriction: 10
+  AirControl: 5
   DashSettings:
-    DashSpeed: 20
+    DashSpeed: 15
     DashDuration: 0.2
     DashCooldown: 1
   SprintSettings:
     SprintMultiplier: 1.5
-  GroundFriction: 10
-  AirControl: 0.5
-  CoyoteTime: 0.2
-  JumpBufferTime: 0.2
-  MinimumMoveSpeed: 0.1
-  MaxFallSpeed: 20
+    SprintDrainRate: 0.2
+    SprintRechargeRate: 0.1

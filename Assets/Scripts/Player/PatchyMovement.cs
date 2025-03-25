@@ -2,7 +2,7 @@ using UnityEngine;
 using Player.Movement;
 using Core.Player.Movement;
 using Core.Combat;
-using Player.Input;
+using Player.InputSystem; // Actualizar este using
 using Core.Utils;
 
 [RequireComponent(typeof(MovementStateMachine))]
@@ -12,7 +12,7 @@ public class PatchyMovement : ComponentRequester
     [Header("Configuration")]
     [SerializeField] public MovementConfig moveConfig;
     [SerializeField] private PhysicsConfig physicsConfig;
-    [SerializeField] private CombatSystem combatSystem;
+    [SerializeField] private CombatSystem combatSystem; // Este es el campo que necesitas asignar
 
     [Header("Layer Detection")]
     [SerializeField] private LayerMask wallLayer;
@@ -33,7 +33,13 @@ public class PatchyMovement : ComponentRequester
 
     protected override void Start()
     {
-        
+        base.Start();
+        if (stateMachine == null)
+        {
+            Debug.LogError("StateMachine is null in PatchyMovement");
+            enabled = false;
+            return;
+        }
     }
 
     protected override void SubscribeToEvents()
@@ -54,9 +60,14 @@ public class PatchyMovement : ComponentRequester
 
     protected override void ValidateComponents()
     {
-        // Validate required components
-        RequestComponent<MovementStateMachine>();
+        stateMachine = RequestComponent<MovementStateMachine>();
         RequestComponent<Rigidbody2D>();
+        
+        if (moveConfig == null)
+        {
+            Debug.LogError("MoveConfig is not assigned in PatchyMovement");
+            enabled = false;
+        }
     }
 
     private void Update()
@@ -71,8 +82,7 @@ public class PatchyMovement : ComponentRequester
     }
 
     private void HandleMoveInput(Vector2 input)
-    {
-        PlayerInputHandler.Instance.MoveInput = input;
+    {        
     }
 
     private void HandleJumpInput()

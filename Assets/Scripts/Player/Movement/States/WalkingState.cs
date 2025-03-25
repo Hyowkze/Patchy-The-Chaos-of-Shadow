@@ -2,7 +2,7 @@
 using UnityEngine;
 using Core.Player.Movement.States;
 using Player.Movement;
-using Player.Input;
+using Player.InputSystem; // Actualizar este using
 
 namespace Core.Player.Movement.States
 {

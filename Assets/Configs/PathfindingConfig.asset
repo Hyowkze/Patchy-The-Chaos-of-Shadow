@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ccae668801949df4cb6d53dae768c24f, type: 3}
   m_Name: PathfindingConfig
   m_EditorClassIdentifier: 
-  gridWorldSize: {x: 50, y: 50}
+  gridSize: 1
+  gridDimensions: {x: 10, y: 10}
   nodeRadius: 0.5
   unwalkableMask:
     serializedVersion: 2
     m_Bits: 0
-  pathUpdateRate: 0.5

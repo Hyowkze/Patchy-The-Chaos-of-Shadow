@@ -1,7 +1,7 @@
 using UnityEngine;
 using Core.Combat;
 using Player.Movement;
-using Player.Input;
+using Player.InputSystem; // Actualizar este using
 
 namespace Core.Player.Movement.States
 {

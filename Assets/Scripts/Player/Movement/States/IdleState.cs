@@ -1,7 +1,7 @@
 using UnityEngine;
 using Core.Player.Movement.States;
 using Player.Movement;
-using Player.Input;
+using Player.InputSystem;
 
 namespace Core.Player.Movement.States
 {

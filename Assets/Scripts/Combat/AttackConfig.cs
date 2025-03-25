@@ -1,14 +1,32 @@
 using UnityEngine;
 using Core.Combat;
 using Core.Player.Movement;
+using Core.Combat.Projectiles;
 
 [CreateAssetMenu(fileName = "AttackConfig", menuName = "Combat/AttackConfig")]
 public class AttackConfig : ScriptableObject
 {
+    [Header("Basic Attack Settings")]
     public float baseDamage = 20f;
+    public float basicProjectileSpeed = 10f;
+    public float basicShootRange = 10f;
+    public string basicAttackPoolTag = "BasicAttack";
+    public GameObject basicProjectilePrefab;
+
+    [Header("Special Attack Settings")]
     public float specialDamage = 40f;
-    public float shootRange = 10f;
+    public float specialProjectileSpeed = 15f;
+    public float specialShootRange = 15f;
     public float specialAttackCooldown = 2f;
+    public float aimingTime = 1f;
+    public string specialAttackPoolTag = "SpecialAttack";
+    public GameObject specialProjectilePrefab;
+
+    [Header("Pool Settings")]
+    public int poolSize = 5;
+
+    [Header("Visual Settings")]
+    public GameObject aimIndicatorPrefab;
 }
 
 public interface IAttackStrategy

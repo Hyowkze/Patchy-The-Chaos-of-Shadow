@@ -4,19 +4,22 @@
 TagManager:
   serializedVersion: 3
   tags:
-  - Ground
+  - Enemy
+  - Player1
+  - BasicAttack
+  - SpecialAttack
   layers:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 'WalkableGround '
+  - Ground
   - Water
   - UI
-  - 'NonWalkableGround '
-  - 'Walls '
-  - 
-  - 
-  - 
+  - Player
+  - Enemy
+  - ProjectilePlayer
+  - UI
+  - Walls
   - 
   - 
   - 

@@ -1,22 +1,35 @@
 using UnityEngine;
-using Core.Combat; // Added this using directive
+using Core.Combat;
+using Core.Pooling;
+using Core.Combat.Projectiles;
 
-public class BasicAttackStrategy : IAttackStrategy
+namespace Core.Combat
 {
-    private readonly AttackConfig config;
-
-    public BasicAttackStrategy(AttackConfig config)
+    public class BasicAttackStrategy : IAttackStrategy
     {
-        this.config = config;
-    }
+        private readonly AttackConfig config;
 
-    public void Execute(Vector2 origin, Vector2 direction, LayerMask targetLayer)
-    {
-        RaycastHit2D hit = Physics2D.Raycast(origin, direction, config.shootRange, targetLayer);
-
-        if (hit.collider != null && hit.collider.TryGetComponent<CombatSystem>(out var targetCombat))
+        public BasicAttackStrategy(AttackConfig config)
         {
-            targetCombat.TakeDamage(config.baseDamage);
+            this.config = config;
+        }
+
+        public void Execute(Vector2 origin, Vector2 direction, LayerMask targetLayer)
+        {
+            GameObject projectile = ObjectPool.Instance.SpawnFromPool(
+                config.basicAttackPoolTag, 
+                origin, 
+                Quaternion.identity);
+
+            if (projectile != null && projectile.TryGetComponent<HomingProjectile>(out var homingProjectile))
+            {
+                homingProjectile.Initialize(
+                    config.baseDamage, 
+                    config.basicProjectileSpeed,
+                    config.basicShootRange, 
+                    direction, 
+                    targetLayer);
+            }
         }
     }
 }
