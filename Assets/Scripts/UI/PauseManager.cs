@@ -15,7 +15,7 @@ public class PauseManager : MonoBehaviour
         BtnMainMenu.onClick.AddListener(GoToMainMenu);
         BtnQuit.onClick.AddListener(QuitGame);
 
-        PanelPause.SetActive(false); // Asegurarse de que el menú está oculto al inicio
+        PanelPause.SetActive(false); 
     }
 
     void Update()
@@ -45,13 +45,13 @@ public class PauseManager : MonoBehaviour
 
     public void GoToMainMenu()
     {
-        Time.timeScale = 1f; // Restablecer el tiempo antes de cambiar de escena
-        SceneManager.LoadScene("MenuPrincipal");
+        Time.timeScale = 1f; 
+        SceneManager.LoadScene("MainMenu");
     }
 
     public void QuitGame()
     {
-        Application.Quit();
-        Debug.Log("Juego cerrado"); 
+        Time.timeScale = 1f; 
+        SceneManager.LoadScene("MainMenu");
     }
 }

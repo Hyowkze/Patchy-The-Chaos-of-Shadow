@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: ebd7ee78005f5f746aa90ba9f3e24d47
+guid: 5e608c80f013a014db2beca62de2a7a5
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 2961030277681646044
-    second: rechazado_0
+      213: 4414731055347915239
+    second: Patchy ani - Layer 1 - 1_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: rechazado_0
+      name: Patchy ani - Layer 1 - 1_0
       rect:
         serializedVersion: 2
-        x: 79
+        x: 59
         y: 0
-        width: 370
-        height: 512
+        width: 193
+        height: 290
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: cd9046e6951b71920800000000000000
-      internalID: 2961030277681646044
+      spriteID: 7e9d5ec2186444d30800000000000000
+      internalID: 4414731055347915239
       vertices: []
       indices: 
       edges: []
@@ -134,8 +134,7 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable:
-      rechazado_0: 2961030277681646044
+    nameFileIdTable: {}
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
